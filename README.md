@@ -92,7 +92,7 @@ This project is intended to handle other people's money. It is unaudited. Read [
 
 Every integrator deploys their own instance with their own owner and salt label; this repository publishes no shared deployment. You do not need permission.
 
-Once deployed, call the proxy address. The owner publishes; anyone reads, likes and tips:
+Once deployed, call the proxy address. The owner publishes. Anyone reads; anyone except a post's author likes and tips:
 
 ```sh
 cast send $PROXY "publishPost(bytes32,string,bytes32)" $(cast keccak "blog") "ipfs://<cid>" $(cast keccak "<content>") --account owner --rpc-url $RPC_URL

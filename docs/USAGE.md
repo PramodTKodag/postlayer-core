@@ -5,9 +5,9 @@ How to call a deployed `SoloPostLayer`: every function, who may call it, and cop
 ## Before you start
 
 - Call the **proxy** address, never the implementation. The proxy keeps its address across upgrades.
-- Solo mode: only the **owner** publishes, updates, hides and unhides posts and manages tip tokens. **Anyone** can read, like and tip.
+- Solo mode: only the **owner** publishes, updates, hides and unhides posts and manages tip tokens. **Anyone** can read. Anyone except a post's author can like and tip it.
 - Post ids start at 1 and grow by one. `postCount()` is the id of the newest post.
-- The contract holds no funds. A tip goes straight from the tipper to the post's author.
+- The contract holds no tip funds: a tip goes straight from the tipper to the post's author. ETH forced in by other means is not tracked or claimable ([AUDIT.md](AUDIT.md)).
 
 Set these once per shell:
 
@@ -58,11 +58,11 @@ Tips are off until the owner approves a token. That includes the native coin: ca
 | Function | Who | What it does |
 |---|---|---|
 | `owner()` / `pendingOwner()` | anyone | Current owner and the address that can accept a pending transfer. |
-| `transferOwnership(address newOwner)` | owner | Starts a two-step transfer. |
+| `transferOwnership(address newOwner)` | owner | Starts a two-step transfer. Passing `address(0)` cancels a pending one. |
 | `acceptOwnership()` | pending owner | Completes it. |
-| `renounceOwnership()` | owner | Always reverts (`RenounceOwnershipDisabled`). |
+| `renounceOwnership()` | owner | Reverts with `RenounceOwnershipDisabled` (anyone else gets `OwnableUnauthorizedAccount`). |
 | `upgradeToAndCall(address newImplementation, bytes data)` | owner | UUPS upgrade; pass `0x` as `data` for no call. |
-| `initialize(address)`, `proxiableUUID()`, `UPGRADE_INTERFACE_VERSION()` | n/a | Plumbing. `initialize` runs once at deployment and cannot be called again. |
+| `initialize(address)`, `proxiableUUID()`, `UPGRADE_INTERFACE_VERSION()` | n/a | Plumbing. `initialize` runs once at deployment; a second call reverts with `InvalidInitialization`. |
 
 Tips follow the post's stored author, not the current owner, so do not transfer ownership after publishing; deploy with the final owner from day one ([AUDIT.md](AUDIT.md)).
 
@@ -70,11 +70,11 @@ Tips follow the post's stored author, not the current owner, so do not transfer 
 
 ### Publish
 
-`contentType` is a 32-byte tag your app defines (any non-zero value). `contentHash` is a hash of the content you store at the URI.
+`contentType` is a 32-byte tag your app defines (any non-zero value). `contentHash` is the keccak-256 hash of the exact bytes of the file you store at the URI, so anyone who fetches the file can recompute it.
 
 ```sh
 CONTENT_TYPE=$(cast keccak "blog")
-CONTENT_HASH=$(cast keccak "$(cat post.md)")
+CONTENT_HASH=$(cast keccak < post.md)
 
 cast send $PROXY "publishPost(bytes32,string,bytes32)" \
   $CONTENT_TYPE "ipfs://<cid>" $CONTENT_HASH --account owner --rpc-url $RPC_URL
@@ -94,7 +94,7 @@ To list every post, loop `getPost` from 1 to `postCount()`, or read the `PostPub
 ### Update, hide, unhide
 
 ```sh
-cast send $PROXY "updatePost(uint256,string,bytes32)" 1 "ipfs://<new cid>" $(cast keccak "$(cat post.md)") --account owner --rpc-url $RPC_URL
+cast send $PROXY "updatePost(uint256,string,bytes32)" 1 "ipfs://<new cid>" $(cast keccak < post.md) --account owner --rpc-url $RPC_URL
 cast send $PROXY "hidePost(uint256)" 1 --account owner --rpc-url $RPC_URL
 cast send $PROXY "unhidePost(uint256)" 1 --account owner --rpc-url $RPC_URL
 ```
@@ -152,16 +152,16 @@ cast send $PROXY "acceptOwnership()" --account <new owner account> --rpc-url $RP
 
 | Event | Fields (`indexed` marked) |
 |---|---|
-| `PostPublished` | `postId` (indexed), `author` (indexed), `contentType`, `contentUri`, `contentHash` |
-| `PostUpdated` | `postId` (indexed), `version`, `previousContentHash`, `contentUri`, `contentHash` |
-| `PostHidden`, `PostUnhidden` | `postId` (indexed) |
-| `PostLiked`, `PostUnliked` | `postId` (indexed), `liker` (indexed) |
-| `PostTipped` | `postId` (indexed), `tipper` (indexed), `token` (indexed), `author`, `amount` |
-| `TokenAllowed` | `token` (indexed), `minTip` |
-| `TokenDisallowed` | `token` (indexed) |
+| `PostPublished` | `uint256 postId` (indexed), `address author` (indexed), `bytes32 contentType`, `string contentUri`, `bytes32 contentHash` |
+| `PostUpdated` | `uint256 postId` (indexed), `uint32 version`, `bytes32 previousContentHash`, `string contentUri`, `bytes32 contentHash` |
+| `PostHidden`, `PostUnhidden` | `uint256 postId` (indexed) |
+| `PostLiked`, `PostUnliked` | `uint256 postId` (indexed), `address liker` (indexed) |
+| `PostTipped` | `uint256 postId` (indexed), `address tipper` (indexed), `address token` (indexed), `address author`, `uint256 amount` |
+| `TokenAllowed` | `address token` (indexed), `uint256 minTip` |
+| `TokenDisallowed` | `address token` (indexed) |
 | `OwnershipTransferStarted`, `OwnershipTransferred`, `Upgraded` | standard OpenZeppelin events |
 
-Read them with the full signature, including `indexed`:
+Read them with the full signature, including `indexed`. The event's topic hash is the same either way, but without `indexed` cast decodes every field as data and fails:
 
 ```sh
 cast logs --from-block <deploy block> --address $PROXY \
@@ -180,27 +180,35 @@ cast decode-error <data> --sig "TokenNotAllowed(address)"
 
 | Function | Reverts with |
 |---|---|
-| any function taking a `postId` | `PostNotFound(postId)` for id 0 or an id above `postCount()` |
-| `publishPost`, `updatePost`, `hidePost`, `unhidePost`, `setTokenAllowed`, `setTokenDisallowed`, `transferOwnership`, `upgradeToAndCall` | `OwnableUnauthorizedAccount(account)` when the caller is not the owner |
+| any function taking a `postId` | `PostNotFound(uint256 postId)` for id 0 or an id above `postCount()` (after the checks listed for the function below) |
+| `publishPost`, `updatePost`, `hidePost`, `unhidePost`, `setTokenAllowed`, `setTokenDisallowed`, `transferOwnership`, `renounceOwnership`, `upgradeToAndCall` | `OwnableUnauthorizedAccount(address account)` when the caller is not the owner. This check runs first, so a non-owner gets it even for an unknown post id. |
 | `publishPost` | `EmptyContentType()`, `EmptyContentUri()`, `EmptyContentHash()` |
-| `updatePost` | `EmptyContentUri()`, `EmptyContentHash()` |
-| `likePost` | `PostHiddenCannotBeLiked`, `AuthorCannotLikeOwnPost`, `AlreadyLiked` |
-| `unlikePost` | `NotLiked` |
-| `tipPost` | `PostHiddenCannotBeTipped`, `AuthorCannotTipOwnPost`, `TokenNotAllowed`, `TipBelowMinimum`, `TipValueMismatch`, `NativeTransferFailed`, `ReentrantCall`, or the token's own revert for an ERC-20 |
+| `updatePost` | `EmptyContentUri()`, `EmptyContentHash()`, both before the post is looked up |
+| `likePost` | `PostHiddenCannotBeLiked(uint256 postId)`, `AuthorCannotLikeOwnPost(uint256 postId)`, `AlreadyLiked(uint256 postId, address liker)` |
+| `unlikePost` | `NotLiked(uint256 postId, address liker)` |
+| `tipPost` | `PostHiddenCannotBeTipped(uint256 postId)`, `AuthorCannotTipOwnPost(uint256 postId)`, `TokenNotAllowed(address token)`, `TipBelowMinimum(address token, uint256 amount, uint256 minTip)`, `TipValueMismatch(uint256 expected, uint256 actual)`, `NativeTransferFailed(address author, uint256 amount)`, `ReentrantCall()`, `SafeERC20FailedOperation(address token)` when an ERC-20 returns false or has no code, or the token's own revert |
 | `setTokenAllowed` | `InvalidMinTip()` for a zero minimum |
-| `setTokenDisallowed` | `TokenNotApproved(token)` |
-| `acceptOwnership` | `OwnableUnauthorizedAccount(account)` when the caller is not the pending owner |
-| `renounceOwnership` | `RenounceOwnershipDisabled()` |
+| `setTokenDisallowed` | `TokenNotApproved(address token)` |
+| `acceptOwnership` | `OwnableUnauthorizedAccount(address account)` when the caller is not the pending owner |
+| `renounceOwnership` | `RenounceOwnershipDisabled()` for the owner |
 
-`tipPost` checks in this order: post exists, not hidden, tipper is not the author, token approved, amount at least the minimum, then `msg.value`. Details are in [`ITipping`](../src/interfaces/ITipping.sol).
+`tipPost` first reverts with `ReentrantCall` if another tip is in progress, then checks in the order documented in [`ITipping`](../src/interfaces/ITipping.sol).
 
 ## From another contract
 
 Import the interfaces (`IPostRegistry`, `IReactions`, `ITipping`, `ITokenAllowlist`) from `src/interfaces/` and call the proxy:
 
 ```solidity
-IPostRegistry.Post memory post = IPostRegistry(proxy).getPost(1);
-ITipping(proxy).tipPost{value: 0.001 ether}(1, address(0), 0.001 ether);
+function tipIfVisible(address proxy, uint256 postId) external payable {
+    IPostRegistry.Post memory post = IPostRegistry(proxy).getPost(postId);
+    if (!post.hidden) ITipping(proxy).tipPost{value: msg.value}(postId, address(0), msg.value);
+}
 ```
+
+Before you rely on it:
+
+- Your contract is the tipper. It pays from its own balance (or needs an ERC-20 allowance for the proxy), and the call reverts with `TokenNotAllowed` until the owner approves the token.
+- A native tip sends the author all remaining gas, and the proxy's reentrancy guard protects only the proxy. Update your own state before the call, or add your own guard.
+- The proxy's owner can upgrade it, so only call a proxy whose owner you trust.
 
 The interfaces are not frozen yet ([ARCHITECTURE.md](ARCHITECTURE.md)), so pin a release tag.
