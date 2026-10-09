@@ -6,6 +6,7 @@ All notable changes are recorded here. Format based on [Keep a Changelog](https:
 
 ### Added
 - `docs/USAGE.md`: every function with who can call it, `cast` examples for publishing, reading, liking, tipping and owner administration, the events, the errors, and a note on calling from another contract. The examples were run against a local chain. README links it and shows a short example.
+- `make test-docs` (part of `make ci`) compares the compiled contract's ABI with `docs/USAGE.md` and the README, so a function, event or error that is added, renamed or re-typed without updating the guide fails CI. It also checks every `"name(types)"` signature the commands pass to `cast`.
 - Open-source community files: `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1, conduct reports through GitHub's private reporting), `SUPPORT.md`, `GOVERNANCE.md`, `CITATION.cff`, `docs/USED_BY.md`, bug and feature issue forms (blank issues off, with security and Discussions links), and README badges plus a license-and-credit section.
 - Dependabot weekly updates for GitHub Actions, npm and the Solidity submodules, and a pinned OpenSSF Scorecard workflow that publishes its result and uploads it to code scanning.
 - An `SPDX-FileCopyrightText` line in every contract and script source, so the copyright notice travels with the verified source of a deployment. Comments only: the compiled bytecode is unchanged.

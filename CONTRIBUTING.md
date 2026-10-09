@@ -31,6 +31,7 @@ Details: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 - Follow [docs/CONVENTIONS.md](docs/CONVENTIONS.md).
 - A change that weakens a check, widens an owner's power or touches money flow needs a clear explanation in the PR and a test for it.
+- A new, renamed or re-typed function, event or error needs the matching update in [docs/USAGE.md](docs/USAGE.md); `make test-docs` fails otherwise.
 - Storage changes are append-only and need an upgrade test (deploy old, write state, upgrade, verify).
 - Add fuzz or invariant tests for any arithmetic or accounting change.
 - No new dependency without a reason in the PR description. Dependabot opens weekly update PRs; a Solidity dependency bump changes bytecode, so it is reviewed like a contract change and needs `make test-upgrades`.
