@@ -1,0 +1,14 @@
+{
+  "31337": {
+    "chainId": 31337,
+    "name": "anvil_a",
+    "explorerUrl": "http://explorer.invalid",
+    "rpcUrl": "http://anvil-a:8545"
+  },
+  "31338": {
+    "chainId": 31338,
+    "name": "anvil_b",
+    "explorerUrl": "http://explorer.invalid",
+    "rpcUrl": "http://anvil-b:8545"
+  }
+}

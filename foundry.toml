@@ -1,0 +1,49 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+libs = ["lib"]
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+  "openzeppelin-foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/",
+]
+solc_version = "0.8.37"
+evm_version = "shanghai"
+optimizer = true
+optimizer_runs = 200
+# Metadata hashes embed source paths; dropping them keeps bytecode, and so CREATE2 addresses,
+# identical across machines and chains.
+bytecode_hash = "none"
+cbor_metadata = false
+# test/upgrades needs the validator library, which requires cancun; it only compiles under the upgrades profile.
+skip = ["test/upgrades/**"]
+
+[fuzz]
+runs = 256
+
+[invariant]
+runs = 256
+depth = 15
+fail_on_revert = true
+
+[profile.ci.fuzz]
+runs = 5000
+
+[profile.ci.invariant]
+runs = 1000
+depth = 50
+
+# Upgrade-safety validation only: ffi lets tests shell out to the OpenZeppelin validator,
+# so it is enabled in this profile and nowhere else.
+[profile.upgrades]
+ffi = true
+ast = true
+build_info = true
+extra_output = ["storageLayout"]
+# The library imports OpenZeppelin proxy contracts that use mcopy (Cancun). Validation is source
+# based, so compiling this profile for Cancun does not change the shipped (shanghai) bytecode.
+evm_version = "cancun"
+skip = []

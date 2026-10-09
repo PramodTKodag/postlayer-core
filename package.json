@@ -1,0 +1,8 @@
+{
+  "name": "postlayer-core",
+  "private": true,
+  "description": "Pins the OpenZeppelin upgrade-safety validator used by `make test-upgrades`.",
+  "devDependencies": {
+    "@openzeppelin/upgrades-core": "1.46.0"
+  }
+}
