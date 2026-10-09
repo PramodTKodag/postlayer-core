@@ -24,7 +24,7 @@ contract PreflightDeployment is Script, DeploymentGuards {
         address deployer = vm.envAddress("DEPLOYER_ADDRESS");
         address owner = vm.envAddress("OWNER");
         bool ownerIsEoa = vm.envOr("OWNER_IS_EOA", false);
-        bytes32 ownerCodehash = vm.envOr("OWNER_CODEHASH", bytes32(0));
+        bytes32 ownerCodehash = _ownerCodehashFromEnv();
 
         for (uint256 i = 0; i < rpcUrlEnvVars.length; ++i) {
             vm.createSelectFork(vm.envString(rpcUrlEnvVars[i]));

@@ -17,10 +17,10 @@ git archive "$tag" | tar -x -C "$dest/src"
 # the current checkout's, so a later dependency bump cannot hide a storage-layout change from the validator.
 rm -rf "$dest/src/lib"
 mkdir -p "$dest/src/lib"
-git ls-tree "$tag" lib/ | while read -r mode type commit path; do
+git ls-tree "$tag" lib/ | while read -r mode _type commit path; do
   [ "$mode" = "160000" ] || continue
   mkdir -p "$dest/src/$path"
   git -C "$path" archive "$commit" | tar -x -C "$dest/src/$path" \
-    || { echo "error: $path at $commit (pinned by $tag) is not available locally; run 'git -C $path fetch' or 'git submodule update --init'" >&2; exit 1; }
+    || { echo "error: $path at $commit (pinned by $tag) is not available locally; run 'git submodule update --init $path', or 'git -C $path fetch' if it is already initialised" >&2; exit 1; }
 done
 echo "exported $tag to $dest/src"

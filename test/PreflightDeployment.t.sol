@@ -86,11 +86,17 @@ contract PreflightDeploymentTest is Test {
     // An unset pin must never pass: it would mean "any code is fine", which is the squatting hole.
     function test_RevertWhen_ownerHasCodeButNoCodehashIsPinned() public {
         vm.expectRevert(
-            abi.encodeWithSelector(
-                DeploymentGuards.OwnerCodehashMismatch.selector, CHAIN_ID, contractOwner, bytes32(0), OWNER_CODEHASH
-            )
+            abi.encodeWithSelector(DeploymentGuards.OwnerCodehashNotPinned.selector, CHAIN_ID, contractOwner)
         );
         preflight.checkChain(CHAIN_ID, deployer, contractOwner, false, bytes32(0));
+    }
+
+    // An EOA owner has no code to pin; a pin next to OWNER_IS_EOA=true would be silently ignored, so it is refused.
+    function test_RevertWhen_ownerIsDeclaredAnEoaButACodehashIsPinned() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(DeploymentGuards.OwnerIsEoaWithCodehash.selector, CHAIN_ID, eoaOwner, OWNER_CODEHASH)
+        );
+        preflight.checkChain(CHAIN_ID, deployer, eoaOwner, true, OWNER_CODEHASH);
     }
 
     function test_RevertWhen_noChainsAreGiven() public {

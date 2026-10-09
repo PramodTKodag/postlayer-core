@@ -32,28 +32,56 @@ export DEPLOYER_ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 script/release.sh preflight
 script/release.sh check
 
-# Preflight reads OWNER and OWNER_IS_EOA itself, so exercise that wiring against the real chains: anything but a
-# plain boolean "true" must be refused for an owner without code (a malformed value fails at parsing), and the owner is checked on every chain separately.
+# Preflight reads OWNER, OWNER_IS_EOA and OWNER_CODEHASH itself, so exercise that wiring against the real chains. An owner
+# that is not declared an EOA must have code on every chain and that code must hash to the pin; a malformed value fails at
+# parsing; and the owner is checked on every chain separately.
 expect_preflight_refusal() { # <expected error text>; runs with the caller's environment
   if out="$(script/release.sh preflight 2>&1)"; then
     echo "error: preflight should have failed with '$1'" >&2; exit 1
   fi
   case "$out" in *"$1"*) ;; *) echo "error: preflight failed without '$1':" >&2; echo "$out" >&2; exit 1 ;; esac
 }
+expect_preflight_ok() { # runs with the caller's environment; both chains must report OK
+  if ! out="$(script/release.sh preflight 2>&1)"; then
+    echo "error: preflight should have passed:" >&2; echo "$out" >&2; exit 1
+  fi
+  for chain_id in 31337 31338; do
+    case "$out" in *"OK preflight, chain id $chain_id"*) ;; *) echo "error: preflight did not pass chain $chain_id:" >&2; echo "$out" >&2; exit 1 ;; esac
+  done
+}
 # An empty value stands for "not declared": forge fills a variable that is unset from ./.env, so unsetting it here would
 # let a developer's own .env change what this test checks.
-(OWNER_IS_EOA=; expect_preflight_refusal "OwnerHasNoCode(31337")
-(OWNER_IS_EOA=yes; expect_preflight_refusal "failed parsing \$OWNER_IS_EOA")
-# A contract-wallet owner that exists on chain A only: chain A passes, chain B is refused.
 WALLET_OWNER=0x1111111111111111111111111111111111111111
-cast rpc --rpc-url "$CHAIN_A" anvil_setCode "$WALLET_OWNER" 0x00 > /dev/null
+# forge caches chain state per block number and anvil_setCode does not mine, so mine a block after changing the code or
+# forge would keep answering from the cache of an earlier run.
+set_wallet_code() { # <rpc url> <code>
+  cast rpc --rpc-url "$1" anvil_setCode "$WALLET_OWNER" "$2" > /dev/null
+  cast rpc --rpc-url "$1" anvil_mine > /dev/null
+}
 WALLET_CODEHASH="$(cast keccak 0x00)"
-(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; expect_preflight_refusal "OwnerHasNoCode(31338")
-(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; out="$(script/release.sh preflight 2>&1 || true)"
- case "$out" in *"OwnerHasNoCode(31337"*|*"OwnerCodehashMismatch(31337"*) echo "error: chain A has the owner's pinned code but was refused" >&2; exit 1 ;; esac)
-# A different contract at the owner address (the address was claimed by someone else) or no pin at all must be refused, never accepted as "has code".
-(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$(cast keccak 0x6000)"; export OWNER OWNER_CODEHASH; expect_preflight_refusal "OwnerCodehashMismatch(31337")
-(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH=; export OWNER OWNER_CODEHASH; expect_preflight_refusal "OwnerCodehashMismatch(31337")
+OTHER_CODEHASH="$(cast keccak 0x6000)"
+(OWNER_IS_EOA=; OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER_CODEHASH; expect_preflight_refusal "OwnerHasNoCode(31337")
+(OWNER_IS_EOA=yes; OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER_CODEHASH; expect_preflight_refusal "failed parsing \$OWNER_IS_EOA")
+# An owner declared an EOA has no code to pin: a pin next to OWNER_IS_EOA=true is refused, never ignored.
+(OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER_CODEHASH; expect_preflight_refusal "OwnerIsEoaWithCodehash(31337")
+# A contract-wallet owner needs a pin; release.sh asks for it, and a malformed one fails at parsing, not as "unset".
+(OWNER_IS_EOA=; OWNER_CODEHASH=; export OWNER_CODEHASH; expect_preflight_refusal "OWNER_CODEHASH is not set")
+# A contract-wallet owner that exists on chain A only: chain A passes, chain B is refused.
+set_wallet_code "$CHAIN_A" 0x00
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; expect_preflight_refusal "OwnerHasNoCode(31338"
+ case "$out" in *"(31337"*) echo "error: chain A has the owner's pinned code but was refused" >&2; echo "$out" >&2; exit 1 ;; esac)
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH=zz; export OWNER OWNER_CODEHASH; expect_preflight_refusal "failed parsing")
+# The pinned code on both chains passes on both.
+set_wallet_code "$CHAIN_B" 0x00
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; expect_preflight_ok)
+# A different contract at the owner address on chain B (the address was claimed by someone else) is refused there,
+# after chain A passed: the pin is checked on every chain of the loop.
+set_wallet_code "$CHAIN_B" 0x6000
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; expect_preflight_refusal "OwnerCodehashMismatch(31338"
+ case "$out" in *"OwnerCodehashMismatch(31337"*) echo "error: chain A has the pinned code but was refused" >&2; echo "$out" >&2; exit 1 ;; esac)
+# A pin that is not the code at the owner is refused, whichever chain is looked at first.
+set_wallet_code "$CHAIN_B" 0x00
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$OTHER_CODEHASH"; export OWNER OWNER_CODEHASH; expect_preflight_refusal "OwnerCodehashMismatch(31337")
 
 # The deploy script enforces the same checks itself, so a broadcast cannot skip the preflight: it refuses before sending anything.
 expect_deploy_refusal() { # <rpc url> <expected chain id> <expected error text>; runs with the caller's environment
@@ -62,12 +90,22 @@ expect_deploy_refusal() { # <rpc url> <expected chain id> <expected error text>;
   fi
   case "$out" in *"$3"*) ;; *) echo "error: deploy failed without '$3':" >&2; echo "$out" >&2; exit 1 ;; esac
 }
+set_wallet_code "$CHAIN_B" 0x
 (OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_B" 31338 "OwnerHasNoCode(31338")
-(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$(cast keccak 0x6000)"; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_A" 31337 "OwnerCodehashMismatch(31337")
+# The message ends with the pinned hash and the owner's actual hash, so a pin that stopped being read (zero) cannot satisfy this.
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$OTHER_CODEHASH"; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_A" 31337 "$OTHER_CODEHASH, $WALLET_CODEHASH)")
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH=; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_A" 31337 "OwnerCodehashNotPinned(31337")
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH=zz; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_A" 31337 "failed parsing")
+(OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_A" 31337 "OwnerIsEoaWithCodehash(31337")
 (expect_deploy_refusal "$CHAIN_B" 31337 "WrongChainId(31337")
 # No expected chain id means no deploy: the variable is required, an empty one does not parse.
 (expect_deploy_refusal "$CHAIN_B" "" "EXPECTED_CHAIN_ID")
-cast rpc --rpc-url "$CHAIN_A" anvil_setCode "$WALLET_OWNER" 0x > /dev/null
+# The pinned code is accepted: the same run without --broadcast simulates the whole deploy and passes. (A real broadcast
+# here would replace the broadcast record of the main deploy, which the manifest below reads.)
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH
+ set_wallet_code "$CHAIN_A" 0x00
+ EXPECTED_CHAIN_ID=31337 forge script script/DeploySoloPostLayer.s.sol --rpc-url "$CHAIN_A" --private-key "$DEPLOYER_KEY" > /dev/null)
+set_wallet_code "$CHAIN_A" 0x
 
 # Write a manifest for the local chains into a temp dir and check its shape.
 export RELEASE_NAME=local-check OWNER SALT_LABEL

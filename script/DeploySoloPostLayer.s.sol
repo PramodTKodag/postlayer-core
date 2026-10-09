@@ -33,7 +33,7 @@ contract DeploySoloPostLayer is Script, DeploymentGuards {
             vm.envString("SALT_LABEL"),
             vm.envUint("EXPECTED_CHAIN_ID"),
             vm.envOr("OWNER_IS_EOA", false),
-            vm.envOr("OWNER_CODEHASH", bytes32(0))
+            _ownerCodehashFromEnv()
         );
     }
 

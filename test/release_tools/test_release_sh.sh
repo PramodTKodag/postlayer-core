@@ -72,6 +72,11 @@ checks=0
 pass() { checks=$((checks + 1)); echo "ok   - $1"; }
 bad() { checks=$((checks + 1)); failures=$((failures + 1)); echo "FAIL - $1"; }
 
+# The owner pin a test run carries unless it sets TEST_OWNER_CODEHASH (an empty value means "no pin").
+DEFAULT_OWNER_CODEHASH=0x5c3b8a1d7e0f4a92b6c3d8e1f0a7b4c2d9e6f3a0b8c5d2e9f6a3b0c7d4e1f8a5
+with_owner_pin() { TEST_OWNER_CODEHASH="$1"; shift; "$@"; unset TEST_OWNER_CODEHASH; }
+with_eoa_owner() { TEST_OWNER_IS_EOA=true; TEST_OWNER_CODEHASH=""; "$@"; unset TEST_OWNER_IS_EOA TEST_OWNER_CODEHASH; }
+
 # release <stdin> <args...>: runs release.sh with the stubs; sets STATUS and OUT (stdout+stderr).
 release() {
   input="$1"; shift
@@ -79,6 +84,7 @@ release() {
   env PATH="$WORK/bin:$PATH" STUB_LOG="$LOG" STUB_ENV_LOG="$ENV_LOG" CHAINS_FILE="$WORK/chains.json" LOCAL_CHAINS_OK=1 \
     CHAINS="${TEST_CHAINS:-84532}" \
     OWNER=0x00000000000000000000000000000000000000f1 SALT_LABEL=test \
+    ${TEST_OWNER_IS_EOA:+OWNER_IS_EOA="$TEST_OWNER_IS_EOA"} OWNER_CODEHASH="${TEST_OWNER_CODEHASH-$DEFAULT_OWNER_CODEHASH}" \
     DEPLOYER_ADDRESS=0x00000000000000000000000000000000000000d1 KEYSTORE_ACCOUNT=testnet \
     ${STUB_CHAIN_ID:+STUB_CHAIN_ID="$STUB_CHAIN_ID"} ${STUB_FORGE_FAIL:+STUB_FORGE_FAIL="$STUB_FORGE_FAIL"} ${STUB_CAST_FAIL:+STUB_CAST_FAIL="$STUB_CAST_FAIL"} \
     ${STUB_FORGE_ECHO_RPC:+STUB_FORGE_ECHO_RPC="$STUB_FORGE_ECHO_RPC"} ${STUB_FORGE_ECHO_FAIL:+STUB_FORGE_ECHO_FAIL="$STUB_FORGE_ECHO_FAIL"} \
@@ -138,6 +144,22 @@ release "$WORK/eof" deploy 84532
 expect_failure "deploy on end of input"
 expect_output "deploy reports the missing confirmation" "no confirmation received"
 expect_no_call "deploy on end of input never broadcasts" "--broadcast"
+
+# A contract-wallet owner needs its code hash pinned; an EOA owner is declared instead. Both are checked before any chain is touched.
+with_owner_pin "" release "$WORK/eof" preflight
+expect_failure "preflight without an owner pin"
+expect_output "preflight asks for OWNER_CODEHASH" "OWNER_CODEHASH is not set"
+expect_no_call "preflight without an owner pin never calls forge" "script"
+with_owner_pin "" release "$WORK/confirm_ok" deploy 84532
+expect_failure "deploy without an owner pin"
+expect_output "deploy asks for OWNER_CODEHASH" "OWNER_CODEHASH is not set"
+expect_no_call "deploy without an owner pin never calls forge" "script"
+with_eoa_owner release "$WORK/eof" preflight
+[ "$STATUS" -eq 0 ] && pass "preflight for an EOA owner needs no pin" || bad "preflight for an EOA owner needs no pin"
+release "$WORK/confirm_ok" deploy 84532
+expect_output "deploy confirmation shows the pinned owner code hash" "owner codehash: $DEFAULT_OWNER_CODEHASH"
+with_eoa_owner release "$WORK/confirm_ok" deploy 84532
+expect_output "deploy confirmation shows the EOA owner mode" "owner mode: EOA"
 
 # deploy tells the deploy script which chain id to expect, so it refuses any other chain even if the RPC lies later
 expect_env_after_deploy() { release "$WORK/confirm_ok" deploy 84532; expect_env "$1" "$2"; }
@@ -300,7 +322,7 @@ done
 release "$WORK/confirm_ok" deploy 123456789012345678
 expect_output "an 18-digit chain id passes the guard" "unknown chain '123456789012345678'"
 : > "$LOG"
-env PATH="$WORK/bin:$PATH" STUB_LOG="$LOG" STUB_ENV_LOG="$ENV_LOG" CHAINS_FILE="$WORK/chains.json" LOCAL_CHAINS_OK=1 CHAINS="84532 Bad-Name" OWNER=0x1 SALT_LABEL=x DEPLOYER_ADDRESS=0x2 \
+env PATH="$WORK/bin:$PATH" STUB_LOG="$LOG" STUB_ENV_LOG="$ENV_LOG" CHAINS_FILE="$WORK/chains.json" LOCAL_CHAINS_OK=1 CHAINS="84532 Bad-Name" OWNER=0x1 OWNER_IS_EOA=true SALT_LABEL=x DEPLOYER_ADDRESS=0x2 \
   sh "$ROOT/script/release.sh" preflight > "$OUT" 2>&1 < /dev/null
 STATUS=$?
 expect_failure "preflight rejects a non-id in CHAINS"
@@ -310,7 +332,7 @@ expect_no_call "preflight with an invalid name never calls forge" "script"
 # an old .env still listing chain names fails clearly instead of being accepted
 for command in preflight check fork-test; do
   : > "$LOG"
-  env PATH="$WORK/bin:$PATH" STUB_LOG="$LOG" STUB_ENV_LOG="$ENV_LOG" CHAINS_FILE="$WORK/chains.json" LOCAL_CHAINS_OK=1 CHAINS="ethereum_sepolia" OWNER=0x1 SALT_LABEL=x DEPLOYER_ADDRESS=0x2 \
+  env PATH="$WORK/bin:$PATH" STUB_LOG="$LOG" STUB_ENV_LOG="$ENV_LOG" CHAINS_FILE="$WORK/chains.json" LOCAL_CHAINS_OK=1 CHAINS="ethereum_sepolia" OWNER=0x1 OWNER_IS_EOA=true SALT_LABEL=x DEPLOYER_ADDRESS=0x2 \
     sh "$ROOT/script/release.sh" $command > "$OUT" 2>&1 < /dev/null
   STATUS=$?
   expect_failure "$command with CHAINS=ethereum_sepolia"
@@ -322,7 +344,7 @@ done
 for command in "preflight" "deploy 84532" "verify 84532" "check" "fork-test"; do
   : > "$LOG"
   env PATH="$WORK/bin:$PATH" STUB_LOG="$LOG" STUB_ENV_LOG="$ENV_LOG" STUB_CHAIN_ID=84532 CHAINS_FILE="$WORK/chains.json" CHAINS=84532 \
-    OWNER=0x1 SALT_LABEL=x DEPLOYER_ADDRESS=0x2 KEYSTORE_ACCOUNT=a \
+    OWNER=0x1 OWNER_IS_EOA=true SALT_LABEL=x DEPLOYER_ADDRESS=0x2 KEYSTORE_ACCOUNT=a \
     sh "$ROOT/script/release.sh" $command > "$OUT" 2>&1 < "$WORK/confirm_ok"
   STATUS=$?
   expect_failure "release.sh $command with CHAINS_FILE set and no local opt-in"
