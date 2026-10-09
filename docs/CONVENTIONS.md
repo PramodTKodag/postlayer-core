@@ -9,19 +9,19 @@ Every name should explain itself. These rules follow the [Solidity style guide](
 | Contract or library | PascalCase noun; file name equals contract name | `PostRegistryModule.sol` |
 | Interface | `I` prefix | `IPostRegistry.sol` |
 | Storage struct | `<Module>Storage` | `PostRegistryStorage` |
-| Test file | `<Contract>.t.sol` | `TippingModule.t.sol` |
-| Script | `<Action>.s.sol` | `DeployPostLayer.s.sol` |
+| Test file | `<Feature>.t.sol`, and `<Feature>Invariant.t.sol` for invariants | `Tipping.t.sol`, `TippingInvariant.t.sol` |
+| Script | `<Action>.s.sol` | `DeploySoloPostLayer.s.sol` |
 
 ## Code
 
 | Kind | Rule | Example |
 |---|---|---|
 | Function | camelCase verb phrase | `publishPost`, `tipPost` |
-| Internal or private function | leading underscore | `_splitTip` |
+| Internal or private function | leading underscore | `_getExistingPost` |
 | State variable | camelCase, no abbreviations | `postCount` |
-| Constant or immutable | UPPER_SNAKE_CASE | `MAX_PLATFORM_FEE_BPS` |
+| Constant or immutable | UPPER_SNAKE_CASE | `FACTORY_CODEHASH` |
 | Event | past tense PascalCase | `PostPublished` |
-| Custom error | PascalCase, says why | `NotPostAuthor`, `TipBelowMinimum` |
+| Custom error | PascalCase, says why | `AuthorCannotTipOwnPost`, `TipBelowMinimum` |
 | Role | UPPER_SNAKE with `_ROLE` | `UPGRADER_ROLE` |
 | Names with units | include the unit | `feeBps`, `amountWei` |
 
@@ -40,7 +40,6 @@ Every name should explain itself. These rules follow the [Solidity style guide](
 
 Format: `test(Fuzz)?_(RevertWhen_)?<behavior>`.
 
-- `test_publishPost_succeeds`
-- `test_RevertWhen_callerIsNotPostAuthor`
-- `testFuzz_tipPost_splitsAmountExactly`
-- `invariant_noFundsHeldAfterTip`
+- `test_hidePost_isNoOpWhenAlreadyHidden`
+- `test_RevertWhen_erc20AllowanceIsMissing`
+- `invariant_contractNeverHoldsFunds`

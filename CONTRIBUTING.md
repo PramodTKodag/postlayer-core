@@ -12,7 +12,7 @@ Thanks for helping. This project handles other people's money, so changes are re
 You need Docker (with Compose) and `make`. Nothing else.
 
 ```sh
-git clone <repo-url> && cd postlayer-core
+git clone --recurse-submodules https://github.com/PramodTKodag/postlayer-core.git && cd postlayer-core
 make image      # build the pinned tooling image
 make ci         # run everything CI runs
 ```
