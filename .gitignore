@@ -24,6 +24,9 @@ docs/specs/
 # Python bytecode (release tooling imports chain_config)
 __pycache__/
 
+# Local AI audit reports
+.reviews/
+
 # Release manifests are each deployer's own record, not part of the library
 deployments/
 

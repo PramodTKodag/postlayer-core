@@ -12,6 +12,7 @@ contract PreflightDeploymentTest is Test {
     address internal deployer = makeAddr("deployer");
     address internal contractOwner = makeAddr("contractOwner");
     address internal eoaOwner = makeAddr("eoaOwner");
+    bytes32 internal constant OWNER_CODEHASH = keccak256(hex"00");
     PreflightDeployment internal preflight;
 
     function setUp() public {
@@ -27,18 +28,18 @@ contract PreflightDeploymentTest is Test {
     }
 
     function test_checkChain_passesWhenEverythingIsInPlace() public view {
-        preflight.checkChain(CHAIN_ID, deployer, contractOwner, false);
+        preflight.checkChain(CHAIN_ID, deployer, contractOwner, false, OWNER_CODEHASH);
     }
 
     function test_RevertWhen_chainIdDiffers() public {
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.WrongChainId.selector, 1, CHAIN_ID));
-        preflight.checkChain(1, deployer, contractOwner, false);
+        preflight.checkChain(1, deployer, contractOwner, false, OWNER_CODEHASH);
     }
 
     function test_RevertWhen_factoryIsMissing() public {
         vm.etch(DeterministicFactory.ADDRESS, "");
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.FactoryMissing.selector, CHAIN_ID));
-        preflight.checkChain(CHAIN_ID, deployer, contractOwner, false);
+        preflight.checkChain(CHAIN_ID, deployer, contractOwner, false, OWNER_CODEHASH);
     }
 
     function test_RevertWhen_factoryCodeIsDifferent() public {
@@ -46,24 +47,56 @@ contract PreflightDeploymentTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(DeploymentGuards.FactoryCodehashMismatch.selector, CHAIN_ID, keccak256(hex"00"))
         );
-        preflight.checkChain(CHAIN_ID, deployer, contractOwner, false);
+        preflight.checkChain(CHAIN_ID, deployer, contractOwner, false, OWNER_CODEHASH);
     }
 
     function test_RevertWhen_deployerHasNoFunds() public {
         vm.deal(deployer, 0);
         vm.expectRevert(abi.encodeWithSelector(PreflightDeployment.DeployerHasNoFunds.selector, CHAIN_ID, deployer));
-        preflight.checkChain(CHAIN_ID, deployer, contractOwner, false);
+        preflight.checkChain(CHAIN_ID, deployer, contractOwner, false, OWNER_CODEHASH);
     }
 
     function test_checkChain_passesForAnEoaOwnerWhenDeclared() public view {
-        preflight.checkChain(CHAIN_ID, deployer, eoaOwner, true);
+        preflight.checkChain(CHAIN_ID, deployer, eoaOwner, true, bytes32(0));
     }
 
     // A contract-wallet owner (for example a Safe) that is not deployed on this chain could later be owned by
     // whoever deploys code at that address; an EOA owner must be declared explicitly.
     function test_RevertWhen_ownerHasNoCodeAndIsNotDeclaredAnEoa() public {
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerHasNoCode.selector, CHAIN_ID, eoaOwner));
-        preflight.checkChain(CHAIN_ID, deployer, eoaOwner, false);
+        preflight.checkChain(CHAIN_ID, deployer, eoaOwner, false, OWNER_CODEHASH);
+    }
+
+    // The same Safe address can be claimed on another chain by a different contract. The owner's code on each chain
+    // must hash to the value the operator pinned, so a different contract at OWNER is refused.
+    function test_RevertWhen_ownerCodeIsNotThePinnedOne() public {
+        vm.etch(contractOwner, hex"6000");
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DeploymentGuards.OwnerCodehashMismatch.selector,
+                CHAIN_ID,
+                contractOwner,
+                OWNER_CODEHASH,
+                keccak256(hex"6000")
+            )
+        );
+        preflight.checkChain(CHAIN_ID, deployer, contractOwner, false, OWNER_CODEHASH);
+    }
+
+    // An unset pin must never pass: it would mean "any code is fine", which is the squatting hole.
+    function test_RevertWhen_ownerHasCodeButNoCodehashIsPinned() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(DeploymentGuards.OwnerCodehashNotPinned.selector, CHAIN_ID, contractOwner)
+        );
+        preflight.checkChain(CHAIN_ID, deployer, contractOwner, false, bytes32(0));
+    }
+
+    // An EOA owner has no code to pin; a pin next to OWNER_IS_EOA=true would be silently ignored, so it is refused.
+    function test_RevertWhen_ownerIsDeclaredAnEoaButACodehashIsPinned() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(DeploymentGuards.OwnerIsEoaWithCodehash.selector, CHAIN_ID, eoaOwner, OWNER_CODEHASH)
+        );
+        preflight.checkChain(CHAIN_ID, deployer, eoaOwner, true, OWNER_CODEHASH);
     }
 
     function test_RevertWhen_noChainsAreGiven() public {

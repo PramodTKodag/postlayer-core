@@ -18,6 +18,15 @@ need() {
   [ -n "$value" ] || fail "$1 is not set (see .env.example)"
 }
 
+# An EOA owner is declared with OWNER_IS_EOA=true; any other owner is a contract wallet whose code hash must be pinned.
+need_owner_mode() {
+  [ "${OWNER_IS_EOA:-}" = true ] || need OWNER_CODEHASH
+}
+
+describe_owner_mode() {
+  if [ "${OWNER_IS_EOA:-}" = true ]; then echo "owner mode: EOA"; else echo "owner codehash: $OWNER_CODEHASH"; fi
+}
+
 # Early guard mirroring chain_config.CHAIN_ID: digits only, no leading zero, at most 18. Chain ids become part of
 # variable names, so nothing else is accepted. Digits are spelled out because ranges can match other characters under some locales.
 validate_chain() {
@@ -114,7 +123,7 @@ require_rpc_chain_id() {
 }
 
 cmd_preflight() {
-  need OWNER; need SALT_LABEL; need DEPLOYER_ADDRESS
+  need OWNER; need_owner_mode; need SALT_LABEL; need DEPLOYER_ADDRESS
   export_chain_env
   rpc_vars="$(rpc_var_names)"; chain_ids="[$(chain_values chainId)]"
   run_hiding_urls forge script script/PreflightDeployment.s.sol --sig 'run(string[],uint256[])' "$rpc_vars" "$chain_ids"
@@ -122,14 +131,14 @@ cmd_preflight() {
 
 cmd_deploy() {
   chain="${1:-}"; [ -n "$chain" ] || fail "usage: release.sh deploy <chain id>"
-  need OWNER; need SALT_LABEL; need DEPLOYER_ADDRESS; need KEYSTORE_ACCOUNT
+  need OWNER; need_owner_mode; need SALT_LABEL; need DEPLOYER_ADDRESS; need KEYSTORE_ACCOUNT
   rpc="$(chain_setting "$chain" rpcUrl)"
-  # Preflight vouches only for the chains in CHAINS (owner code, factory, funds), so deploy refuses any other chain.
+  # Preflight vouches only for the chains in CHAINS (owner code and code hash, factory, funds), so deploy refuses any other chain.
   case " $(chain_list) " in *" $chain "*) ;; *) fail "chain $chain is not in CHAINS; add it and run the preflight first" ;; esac
   require_rpc_chain_id "$chain" > /dev/null
   echo "About to BROADCAST to $(chain_label "$chain")"
   echo "  signer (keystore account): $KEYSTORE_ACCOUNT   deployer address: $DEPLOYER_ADDRESS"
-  echo "  owner: $OWNER   salt label: $SALT_LABEL"
+  echo "  owner: $OWNER   $(describe_owner_mode)   salt label: $SALT_LABEL"
   printf "Type the chain id (%s) to continue: " "$chain"
   read -r answer || fail "no confirmation received; nothing was sent"
   [ "$answer" = "$chain" ] || fail "confirmation did not match; nothing was sent"

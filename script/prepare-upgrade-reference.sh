@@ -13,8 +13,14 @@ git rev-parse --verify --quiet "refs/tags/$tag" > /dev/null \
 rm -rf "$dest"
 mkdir -p "$dest/src"
 git archive "$tag" | tar -x -C "$dest/src"
-# git archive leaves submodules as empty directories; the dependencies are pinned by foundry.lock and are
-# the same as the current checkout's, so link them in.
+# git archive leaves submodules as empty directories. Export each dependency at the commit the release tag pinned, not
+# the current checkout's, so a later dependency bump cannot hide a storage-layout change from the validator.
 rm -rf "$dest/src/lib"
-ln -s ../../lib "$dest/src/lib"
+mkdir -p "$dest/src/lib"
+git ls-tree "$tag" lib/ | while read -r mode _type commit path; do
+  [ "$mode" = "160000" ] || continue
+  mkdir -p "$dest/src/$path"
+  git -C "$path" archive "$commit" | tar -x -C "$dest/src/$path" \
+    || { echo "error: $path at $commit (pinned by $tag) is not available locally; run 'git submodule update --init $path', or 'git -C $path fetch' if it is already initialised" >&2; exit 1; }
+done
 echo "exported $tag to $dest/src"

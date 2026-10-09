@@ -11,6 +11,8 @@ import {SoloPostLayer} from "../src/SoloPostLayer.sol";
 
 contract DeploySoloPostLayerTest is Test {
     string internal constant LABEL = "postlayer-test";
+    // The code hash a test owner contract is pinned to (its code is hex"00"); other code is "someone else's contract".
+    bytes32 internal constant OWNER_CODEHASH = keccak256(hex"00");
 
     address internal owner = makeAddr("owner");
     DeploySoloPostLayer internal deployer;
@@ -136,7 +138,7 @@ contract DeploySoloPostLayerTest is Test {
     // broadcastDeploy is what `run` calls after reading the environment. It is tested with explicit arguments so no
     // test races on the process environment, which forge shares between parallel tests.
     function test_broadcastDeploy_deploysWhenOwnerIsAnEoaDeclaredAsSuch() public {
-        (, address proxy) = deployer.broadcastDeploy(owner, LABEL, block.chainid, true);
+        (, address proxy) = deployer.broadcastDeploy(owner, LABEL, block.chainid, true, bytes32(0));
 
         assertEq(SoloPostLayer(proxy).owner(), owner);
     }
@@ -144,7 +146,7 @@ contract DeploySoloPostLayerTest is Test {
     function test_broadcastDeploy_deploysWhenOwnerHasCode() public {
         vm.etch(owner, hex"00");
 
-        (, address proxy) = deployer.broadcastDeploy(owner, LABEL, block.chainid, false);
+        (, address proxy) = deployer.broadcastDeploy(owner, LABEL, block.chainid, false, OWNER_CODEHASH);
 
         assertEq(SoloPostLayer(proxy).owner(), owner);
     }
@@ -153,12 +155,45 @@ contract DeploySoloPostLayerTest is Test {
     // code at that address, so the broadcast itself must refuse, with or without a prior preflight.
     function test_RevertWhen_broadcastDeployOwnerHasNoCodeAndIsNotDeclaredAnEoa() public {
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerHasNoCode.selector, block.chainid, owner));
-        deployer.broadcastDeploy(owner, LABEL, block.chainid, false);
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, false, OWNER_CODEHASH);
+    }
+
+    function test_RevertWhen_broadcastDeployOwnerCodeIsNotThePinnedOne() public {
+        vm.etch(owner, hex"6000");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DeploymentGuards.OwnerCodehashMismatch.selector,
+                block.chainid,
+                owner,
+                OWNER_CODEHASH,
+                keccak256(hex"6000")
+            )
+        );
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, false, OWNER_CODEHASH);
+    }
+
+    // No pin means "any code is fine", which is the squatting hole the pin exists to close.
+    function test_RevertWhen_broadcastDeployOwnerHasCodeButNoCodehashIsPinned() public {
+        vm.etch(owner, hex"00");
+
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerCodehashNotPinned.selector, block.chainid, owner));
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, false, bytes32(0));
+    }
+
+    // An EOA owner has no code to pin; both settings together mean the operator is unsure what the owner is.
+    function test_RevertWhen_broadcastDeployOwnerIsDeclaredAnEoaButACodehashIsPinned() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DeploymentGuards.OwnerIsEoaWithCodehash.selector, block.chainid, owner, OWNER_CODEHASH
+            )
+        );
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, true, OWNER_CODEHASH);
     }
 
     function test_RevertWhen_broadcastDeployChainIsNotTheExpectedOne() public {
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.WrongChainId.selector, 1, block.chainid));
-        deployer.broadcastDeploy(owner, LABEL, 1, true);
+        deployer.broadcastDeploy(owner, LABEL, 1, true, bytes32(0));
     }
 
     function test_RevertWhen_broadcastDeployFactoryCodeIsDifferent() public {
@@ -167,26 +202,60 @@ contract DeploySoloPostLayerTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(DeploymentGuards.FactoryCodehashMismatch.selector, block.chainid, keccak256(hex"00"))
         );
-        deployer.broadcastDeploy(owner, LABEL, block.chainid, true);
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, true, bytes32(0));
     }
 
     function test_RevertWhen_broadcastDeployFactoryIsMissing() public {
         vm.etch(DeterministicFactory.ADDRESS, "");
 
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.FactoryMissing.selector, block.chainid));
-        deployer.broadcastDeploy(owner, LABEL, block.chainid, true);
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, true, bytes32(0));
     }
 
     // The one test that sets environment variables (forge shares the process environment between parallel tests, so
-    // no other test may write OWNER, SALT_LABEL, EXPECTED_CHAIN_ID or OWNER_IS_EOA). It pins the security default:
-    // an owner without code is refused unless OWNER_IS_EOA says true, so an empty or missing value must not mean EOA.
-    function test_RevertWhen_runOwnerIsEoaIsEmptyAndOwnerHasNoCode() public {
+    // no other test may write OWNER, SALT_LABEL, EXPECTED_CHAIN_ID, OWNER_IS_EOA or OWNER_CODEHASH). It pins the
+    // security defaults of `run`: an owner without code is refused unless OWNER_IS_EOA says true, so an empty value
+    // must not mean EOA; and the owner's code hash must be given, well formed and equal to the owner's code.
+    function test_run_readsTheOwnerSettingsFromTheEnvironment() public {
         vm.setEnv("OWNER", vm.toString(owner));
         vm.setEnv("SALT_LABEL", LABEL);
         vm.setEnv("EXPECTED_CHAIN_ID", vm.toString(block.chainid));
         vm.setEnv("OWNER_IS_EOA", "");
+        vm.setEnv("OWNER_CODEHASH", "");
 
+        // No code at the owner and not declared an EOA.
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerHasNoCode.selector, block.chainid, owner));
         deployer.run();
+
+        // The owner has code but no pin was given: refused as not pinned, not as a mismatch.
+        vm.etch(owner, hex"00");
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerCodehashNotPinned.selector, block.chainid, owner));
+        deployer.run();
+
+        // A value that is not a 32-byte hash is an error in itself, never read as "unset".
+        vm.setEnv("OWNER_CODEHASH", "zz");
+        vm.expectRevert();
+        deployer.run();
+        vm.setEnv("OWNER_CODEHASH", "0x12");
+        vm.expectRevert();
+        deployer.run();
+
+        // A well-formed pin that is not the owner's code names both values.
+        vm.setEnv("OWNER_CODEHASH", vm.toString(keccak256(hex"6000")));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DeploymentGuards.OwnerCodehashMismatch.selector,
+                block.chainid,
+                owner,
+                keccak256(hex"6000"),
+                OWNER_CODEHASH
+            )
+        );
+        deployer.run();
+
+        // The right pin deploys.
+        vm.setEnv("OWNER_CODEHASH", vm.toString(OWNER_CODEHASH));
+        (, address proxy) = deployer.run();
+        assertEq(SoloPostLayer(proxy).owner(), owner);
     }
 }

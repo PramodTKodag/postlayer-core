@@ -69,13 +69,13 @@ UPGRADE_REFERENCE_TAG ?= testnet-0.1.0
 
 upgrade-reference: ## Build the released version's compiler output used as the upgrade baseline
 	script/prepare-upgrade-reference.sh $(UPGRADE_REFERENCE_TAG)
-	$(RUN_TOOLS) "cd .upgrade-reference/src && FOUNDRY_PROFILE=default FOUNDRY_ALLOW_PATHS='[\"../../lib\"]' FOUNDRY_AST=true FOUNDRY_EXTRA_OUTPUT='[\"storageLayout\"]' forge build --build-info --build-info-path ../reference-build-info src"
+	$(RUN_TOOLS) "cd .upgrade-reference/src && FOUNDRY_PROFILE=default FOUNDRY_AST=true FOUNDRY_EXTRA_OUTPUT='[\"storageLayout\"]' forge build --build-info --build-info-path ../reference-build-info src"
 
 test-upgrades: upgrade-reference ## Check upgrade safety (OpenZeppelin validator, needs ffi)
 	$(RUN_TOOLS) "npm ci --ignore-scripts && forge clean && FOUNDRY_PROFILE=upgrades forge test -vvv --match-path 'test/upgrades/*'"
 
 test-release-tools: ## Offline tests for the release helpers (manifest writer and release.sh, with stubbed forge and cast)
-	$(RUN_TOOLS) "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s test/release_tools -v && sh test/release_tools/test_release_sh.sh"
+	$(RUN_TOOLS) "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s test/release_tools -v && sh test/release_tools/test_release_sh.sh && sh test/release_tools/test_prepare_upgrade_reference.sh"
 
 test-match: ## Run tests matching a name: make test-match MATCH=testFuzz_tip
 	@test -n "$(MATCH)" || { echo "Usage: make test-match MATCH=<test name pattern>"; exit 1; }
