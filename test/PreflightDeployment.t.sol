@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {DeterministicFactory} from "../script/DeterministicFactory.sol";
 import {DeploySoloPostLayer} from "../script/DeploySoloPostLayer.s.sol";
 import {PreflightDeployment} from "../script/PreflightDeployment.s.sol";
+import {DeploymentGuards} from "../script/DeploymentGuards.sol";
 
 contract PreflightDeploymentTest is Test {
     uint256 internal constant CHAIN_ID = 84532;
@@ -30,20 +31,20 @@ contract PreflightDeploymentTest is Test {
     }
 
     function test_RevertWhen_chainIdDiffers() public {
-        vm.expectRevert(abi.encodeWithSelector(PreflightDeployment.WrongChainId.selector, 1, CHAIN_ID));
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.WrongChainId.selector, 1, CHAIN_ID));
         preflight.checkChain(1, deployer, contractOwner, false);
     }
 
     function test_RevertWhen_factoryIsMissing() public {
         vm.etch(DeterministicFactory.ADDRESS, "");
-        vm.expectRevert(abi.encodeWithSelector(PreflightDeployment.FactoryMissing.selector, CHAIN_ID));
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.FactoryMissing.selector, CHAIN_ID));
         preflight.checkChain(CHAIN_ID, deployer, contractOwner, false);
     }
 
     function test_RevertWhen_factoryCodeIsDifferent() public {
         vm.etch(DeterministicFactory.ADDRESS, hex"00");
         vm.expectRevert(
-            abi.encodeWithSelector(PreflightDeployment.FactoryCodehashMismatch.selector, CHAIN_ID, keccak256(hex"00"))
+            abi.encodeWithSelector(DeploymentGuards.FactoryCodehashMismatch.selector, CHAIN_ID, keccak256(hex"00"))
         );
         preflight.checkChain(CHAIN_ID, deployer, contractOwner, false);
     }
@@ -61,7 +62,7 @@ contract PreflightDeploymentTest is Test {
     // A contract-wallet owner (for example a Safe) that is not deployed on this chain could later be owned by
     // whoever deploys code at that address; an EOA owner must be declared explicitly.
     function test_RevertWhen_ownerHasNoCodeAndIsNotDeclaredAnEoa() public {
-        vm.expectRevert(abi.encodeWithSelector(PreflightDeployment.OwnerHasNoCode.selector, CHAIN_ID, eoaOwner));
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerHasNoCode.selector, CHAIN_ID, eoaOwner));
         preflight.checkChain(CHAIN_ID, deployer, eoaOwner, false);
     }
 

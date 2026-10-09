@@ -5,12 +5,16 @@ import {Script, console} from "forge-std/Script.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {SoloPostLayer} from "../src/SoloPostLayer.sol";
 import {DeterministicFactory} from "./DeterministicFactory.sol";
+import {DeploymentGuards} from "./DeploymentGuards.sol";
 
 /// @notice Deploys SoloPostLayer (implementation + UUPS proxy) through the deterministic factory.
 /// Addresses depend only on the factory, `saltLabel`, `owner` and the compiled bytecode, so the same
 /// inputs give the same proxy address on every chain. Re-running skips contracts that already exist.
-/// Usage: OWNER=<address> SALT_LABEL=<label> forge script script/DeploySoloPostLayer.s.sol --rpc-url <url> --broadcast
-contract DeploySoloPostLayer is Script {
+/// Before broadcasting, `run` refuses unless the chain id is EXPECTED_CHAIN_ID, the factory has the pinned code, and
+/// OWNER has code on this chain (unless OWNER_IS_EOA=true), so no deploy path skips the preflight's safety checks.
+/// Usage: OWNER=<address> [OWNER_IS_EOA=true] SALT_LABEL=<label> EXPECTED_CHAIN_ID=<chain id>
+///   forge script script/DeploySoloPostLayer.s.sol --rpc-url <url> --broadcast
+contract DeploySoloPostLayer is Script, DeploymentGuards {
     error FactoryNotDeployed();
     error EmptySaltLabel();
     error ZeroOwner();
@@ -20,10 +24,12 @@ contract DeploySoloPostLayer is Script {
     string private constant IMPLEMENTATION_SALT_PART = "implementation";
     string private constant PROXY_SALT_PART = "proxy";
 
-    /// @notice Reads OWNER and SALT_LABEL from the environment, logs the predicted addresses and deploys both contracts.
+    /// @notice Reads OWNER, OWNER_IS_EOA, SALT_LABEL and EXPECTED_CHAIN_ID from the environment, checks the chain,
+    /// logs the predicted addresses and deploys both contracts.
     function run() external returns (address implementation, address proxy) {
         address owner = vm.envAddress("OWNER");
         string memory saltLabel = vm.envString("SALT_LABEL");
+        _requireDeployable(vm.envUint("EXPECTED_CHAIN_ID"), owner, vm.envOr("OWNER_IS_EOA", false));
 
         (address predictedImplementation, address predictedProxy) = predict(owner, saltLabel);
         console.log("Predicted implementation:", predictedImplementation);

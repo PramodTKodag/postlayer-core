@@ -6,6 +6,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {DeterministicFactory} from "../script/DeterministicFactory.sol";
 import {DeploySoloPostLayer} from "../script/DeploySoloPostLayer.s.sol";
+import {DeploymentGuards} from "../script/DeploymentGuards.sol";
 import {SoloPostLayer} from "../src/SoloPostLayer.sol";
 
 contract DeploySoloPostLayerTest is Test {
@@ -130,5 +131,72 @@ contract DeploySoloPostLayerTest is Test {
     function test_RevertWhen_ownerIsZero() public {
         vm.expectRevert(DeploySoloPostLayer.ZeroOwner.selector);
         deployer.deploy(address(0), LABEL);
+    }
+
+    // run() is what `forge script --broadcast` executes: it must refuse before broadcasting anything.
+    function _setRunEnv(uint256 expectedChainId, address runOwner, string memory ownerIsEoa) internal {
+        vm.setEnv("OWNER", vm.toString(runOwner));
+        vm.setEnv("SALT_LABEL", LABEL);
+        vm.setEnv("EXPECTED_CHAIN_ID", vm.toString(expectedChainId));
+        vm.setEnv("OWNER_IS_EOA", ownerIsEoa);
+    }
+
+    function test_run_deploysWhenOwnerIsAnEoaDeclaredAsSuch() public {
+        _setRunEnv(block.chainid, owner, "true");
+
+        (, address proxy) = deployer.run();
+
+        assertEq(SoloPostLayer(proxy).owner(), owner);
+    }
+
+    function test_run_deploysWhenOwnerHasCode() public {
+        vm.etch(owner, hex"00");
+        _setRunEnv(block.chainid, owner, "false");
+
+        (, address proxy) = deployer.run();
+
+        assertEq(SoloPostLayer(proxy).owner(), owner);
+    }
+
+    // A contract-wallet owner (for example a Safe) missing on this chain could later be claimed by whoever deploys
+    // code at that address, so the broadcast itself must refuse, with or without a prior preflight.
+    function test_RevertWhen_runOwnerHasNoCodeAndIsNotDeclaredAnEoa() public {
+        _setRunEnv(block.chainid, owner, "false");
+
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerHasNoCode.selector, block.chainid, owner));
+        deployer.run();
+    }
+
+    function test_RevertWhen_runChainIsNotTheExpectedOne() public {
+        _setRunEnv(1, owner, "true");
+
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.WrongChainId.selector, 1, block.chainid));
+        deployer.run();
+    }
+
+    function test_RevertWhen_runFactoryCodeIsDifferent() public {
+        vm.etch(DeterministicFactory.ADDRESS, hex"00");
+        _setRunEnv(block.chainid, owner, "true");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(DeploymentGuards.FactoryCodehashMismatch.selector, block.chainid, keccak256(hex"00"))
+        );
+        deployer.run();
+    }
+
+    function test_RevertWhen_runFactoryIsMissing() public {
+        vm.etch(DeterministicFactory.ADDRESS, "");
+        _setRunEnv(block.chainid, owner, "true");
+
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.FactoryMissing.selector, block.chainid));
+        deployer.run();
+    }
+
+    function test_RevertWhen_runHasNoExpectedChainId() public {
+        _setRunEnv(block.chainid, owner, "true");
+        vm.setEnv("EXPECTED_CHAIN_ID", "");
+
+        vm.expectRevert();
+        deployer.run();
     }
 }

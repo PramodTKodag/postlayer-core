@@ -84,24 +84,9 @@ rpc_var_names() {
   echo "[$out]"
 }
 
-# run_hiding_rpc_urls <command...>: runs the command, then prints its combined output with every RPC URL configured for
-# $CHAINS replaced by <rpc url hidden>, and returns the command's exit status. Forge echoes the URL in provider errors and
-# the URLs may carry a key. The URLs travel to the filter through the environment (never argv) and are matched literally,
-# longest first. The output is shown only once the command ends.
-run_hiding_rpc_urls() {
-  chains="$(chain_list)"; urls=""
-  for c in $chains; do urls="${urls}$(chain_setting "$c" rpcUrl)
-"; done
-  status=0
-  output="$("$@" 2>&1)" || status=$?
-  printf '%s\n' "$output" | RPC_URLS_TO_HIDE="$urls" python3 -c '
-import os, sys
-text = sys.stdin.read()
-for url in sorted(filter(None, os.environ["RPC_URLS_TO_HIDE"].split("\n")), key=len, reverse=True):
-    text = text.replace(url, "<rpc url hidden>")
-sys.stdout.write(text)'
-  return "$status"
-}
+# run_hiding_urls <command...>: runs the command, streams its combined output with every URL replaced by <url hidden>, and
+# returns the command's exit status. Forge echoes the RPC URL in provider errors, and the URL may carry a key.
+run_hiding_urls() { python3 -u "$SCRIPT_DIR/hide_urls.py" "$@"; }
 
 # predict_addresses: sets PREDICTED_IMPLEMENTATION and PREDICTED_PROXY from the one PREDICTED line that
 # PreflightDeployment.predict() logs. Needs no RPC, so forge's output is safe to print when it fails.
@@ -132,13 +117,15 @@ cmd_preflight() {
   need OWNER; need SALT_LABEL; need DEPLOYER_ADDRESS
   export_chain_env
   rpc_vars="$(rpc_var_names)"; chain_ids="[$(chain_values chainId)]"
-  run_hiding_rpc_urls forge script script/PreflightDeployment.s.sol --sig 'run(string[],uint256[])' "$rpc_vars" "$chain_ids"
+  run_hiding_urls forge script script/PreflightDeployment.s.sol --sig 'run(string[],uint256[])' "$rpc_vars" "$chain_ids"
 }
 
 cmd_deploy() {
   chain="${1:-}"; [ -n "$chain" ] || fail "usage: release.sh deploy <chain id>"
   need OWNER; need SALT_LABEL; need DEPLOYER_ADDRESS; need KEYSTORE_ACCOUNT
   rpc="$(chain_setting "$chain" rpcUrl)"
+  # Preflight vouches only for the chains in CHAINS (owner code, factory, funds), so deploy refuses any other chain.
+  case " $(chain_list) " in *" $chain "*) ;; *) fail "chain $chain is not in CHAINS; add it and run the preflight first" ;; esac
   require_rpc_chain_id "$chain" > /dev/null
   echo "About to BROADCAST to $(chain_label "$chain")"
   echo "  signer (keystore account): $KEYSTORE_ACCOUNT   deployer address: $DEPLOYER_ADDRESS"
@@ -150,7 +137,11 @@ cmd_deploy() {
   # --skip-simulation --slow: forge's local simulation under-prices contract creation on some chains
   # (the factory's CREATE2 runs out of gas on-chain), so each transaction's gas is estimated by the chain
   # itself, and sent only after the previous one is confirmed so the proxy's estimate sees the implementation.
-  FOUNDRY_ETH_RPC_URL="$rpc" forge script script/DeploySoloPostLayer.s.sol \
+  # EXPECTED_CHAIN_ID makes the script itself refuse a chain id, factory or owner the preflight would have refused.
+  # Exported, not a prefix assignment: a prefix on a shell function call is not portable.
+  EXPECTED_CHAIN_ID="$(chain_setting "$chain" chainId)"; export EXPECTED_CHAIN_ID
+  FOUNDRY_ETH_RPC_URL="$rpc"; export FOUNDRY_ETH_RPC_URL
+  run_hiding_urls forge script script/DeploySoloPostLayer.s.sol \
     --account "$KEYSTORE_ACCOUNT" --sender "$DEPLOYER_ADDRESS" --skip-simulation --slow --broadcast
 }
 
@@ -180,13 +171,14 @@ cmd_check() {
   need OWNER; need SALT_LABEL
   export_chain_env
   rpc_vars="$(rpc_var_names)"; chain_ids="[$(chain_values chainId)]"
-  run_hiding_rpc_urls forge script script/CheckDeployment.s.sol --sig 'run(string[],uint256[])' "$rpc_vars" "$chain_ids"
+  run_hiding_urls forge script script/CheckDeployment.s.sol --sig 'run(string[],uint256[])' "$rpc_vars" "$chain_ids"
 }
 
 # Traces are off (-vv) because forge traces would print the RPC URL.
 cmd_fork_test() {
   export_chain_env
-  RELEASE_FORK_TEST=1 forge test --match-path 'test/fork/*' -vv
+  RELEASE_FORK_TEST=1; export RELEASE_FORK_TEST
+  run_hiding_urls forge test --match-path 'test/fork/*' -vv
 }
 
 case "${1:-}" in
