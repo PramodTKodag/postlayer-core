@@ -11,7 +11,7 @@ import {DeploymentGuards} from "./DeploymentGuards.sol";
 /// Addresses depend only on the factory, `saltLabel`, `owner` and the compiled bytecode, so the same
 /// inputs give the same proxy address on every chain. Re-running skips contracts that already exist.
 /// Before broadcasting, `run` refuses unless the chain id is EXPECTED_CHAIN_ID, the factory has the pinned code, and
-/// OWNER has code matching OWNER_CODEHASH on this chain (unless OWNER_IS_EOA=true), so no deploy path skips the preflight's safety checks.
+/// OWNER has code matching OWNER_CODEHASH on this chain (or, declared an EOA with OWNER_IS_EOA=true, has no contract code), so no deploy path skips the preflight's safety checks.
 /// Usage: OWNER=<address> (OWNER_IS_EOA=true | OWNER_CODEHASH=<bytes32>) SALT_LABEL=<label> EXPECTED_CHAIN_ID=<chain id>
 ///   forge script script/DeploySoloPostLayer.s.sol --rpc-url <url> --broadcast
 contract DeploySoloPostLayer is Script, DeploymentGuards {

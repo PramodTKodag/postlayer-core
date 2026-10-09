@@ -113,18 +113,32 @@ contract PreflightDeploymentTest is Test {
         preflight.checkChain(CHAIN_ID, deployer, eoaOwner, true, bytes32(0));
     }
 
-    // Code of the delegation's length that is not a delegation, and plain contract code, are refused. (The EVM cannot
-    // hold other code that starts with 0xef0100: such code is only valid as exactly a delegation.)
+    // Code with the delegation's length and plain contract code are refused unless it is exactly 0xef0100 + address.
+    // A conforming post-London chain cannot deploy code starting with 0xef (EIP-3541), and vm.etch and anvil reject
+    // 0xef01xx / 0xef00xx code of the delegation's length, so the other prefix bytes and lengths cannot be built here.
     function test_RevertWhen_ownerIsDeclaredAnEoaButHasCodeThatIsNotADelegation() public {
-        bytes[2] memory notDelegations = [
-            abi.encodePacked(hex"6000", new bytes(21)), // 23 bytes long, like a delegation
-            abi.encodePacked(hex"ef", makeAddr("delegate")) // starts with 0xef but is not 0xef0100 + address
+        address delegate = makeAddr("delegate");
+        bytes[3] memory notDelegations = [
+            abi.encodePacked(hex"6000", new bytes(21)), // 23 bytes, plain code
+            abi.encodePacked(hex"ee0100", delegate), // 23 bytes, first byte differs
+            abi.encodePacked(hex"ef", delegate) // 21 bytes, too short
         ];
         for (uint256 i = 0; i < notDelegations.length; ++i) {
             vm.etch(eoaOwner, notDelegations[i]);
             vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerIsEoaHasCode.selector, CHAIN_ID, eoaOwner));
             preflight.checkChain(CHAIN_ID, deployer, eoaOwner, true, bytes32(0));
         }
+    }
+
+    // Declaring an EOA together with a pin is refused as that contradiction even when the owner has code, so the
+    // operator is told to drop the pin instead of the code check hiding it.
+    function test_RevertWhen_ownerIsDeclaredAnEoaWithAPinAndHasCode() public {
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DeploymentGuards.OwnerIsEoaWithCodehash.selector, CHAIN_ID, contractOwner, OWNER_CODEHASH
+            )
+        );
+        preflight.checkChain(CHAIN_ID, deployer, contractOwner, true, OWNER_CODEHASH);
     }
 
     function test_RevertWhen_noChainsAreGiven() public {

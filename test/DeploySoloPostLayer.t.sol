@@ -199,6 +199,17 @@ contract DeploySoloPostLayerTest is Test {
         deployer.broadcastDeploy(owner, LABEL, block.chainid, true, bytes32(0));
     }
 
+    function test_RevertWhen_broadcastDeployOwnerIsDeclaredAnEoaWithAPinAndHasCode() public {
+        vm.etch(owner, hex"00");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DeploymentGuards.OwnerIsEoaWithCodehash.selector, block.chainid, owner, OWNER_CODEHASH
+            )
+        );
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, true, OWNER_CODEHASH);
+    }
+
     function test_broadcastDeploy_deploysWhenOwnerIsAnEoaThatDelegatedWithEip7702() public {
         vm.etch(owner, abi.encodePacked(hex"ef0100", makeAddr("delegate")));
 

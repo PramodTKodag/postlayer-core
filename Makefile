@@ -77,8 +77,8 @@ test-upgrades: upgrade-reference ## Check upgrade safety (OpenZeppelin validator
 test-release-tools: ## Offline tests for the release helpers (manifest writer and release.sh, with stubbed forge and cast)
 	$(RUN_TOOLS) "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s test/release_tools -v && sh test/release_tools/test_release_sh.sh && sh test/release_tools/test_prepare_upgrade_reference.sh"
 
-test-release-isolation: ## Check the release container shares no build output, cache or compiler volume with the other tooling (runs on the host)
-	python3 test/release_tools/check_release_isolation.py
+test-release-isolation: ## Check the release container keeps its build output, cache, bytecode and compiler volume apart from the other tooling
+	$(COMPOSE) --profile tools config --format json | $(COMPOSE) run --rm -T tools "python3 test/release_tools/check_release_isolation.py"
 
 test-match: ## Run tests matching a name: make test-match MATCH=testFuzz_tip
 	@test -n "$(MATCH)" || { echo "Usage: make test-match MATCH=<test name pattern>"; exit 1; }
