@@ -10,7 +10,6 @@ All notable changes are recorded here. Format based on [Keep a Changelog](https:
 - `docs/AUDIT.md`: scope, trust model, tested invariants, known limitations and static-analysis triage for reviewers.
 - The deploy script itself now refuses to broadcast unless the chain id equals `EXPECTED_CHAIN_ID`, the factory has the pinned code, and `OWNER` has code on that chain (unless `OWNER_IS_EOA=true`). `release.sh deploy` sets `EXPECTED_CHAIN_ID` from `chains.json` and refuses a chain that is not in `CHAINS`. Before, only the optional preflight enforced these checks. The checks live in `script/DeploymentGuards.sol`, shared with the preflight.
 - `make require-release-env` refuses `FOUNDRY_*` and `DAPP_*` settings in `.env` (any letter case): they change the compiled bytecode (and so the addresses) while the manifest records the `foundry.toml` settings.
-
 - A contract-wallet `OWNER` must now also match `OWNER_CODEHASH` on every target chain, checked by `release-preflight` and by the deploy script itself. Before, any code at `OWNER` passed, so a different contract that claimed the address on another chain first was accepted. `checkChain` and `broadcastDeploy` take the extra `ownerCodehash` argument. The pin does not prove who controls the wallet; see `docs/AUDIT.md`.
 - `.github/FUNDING.yml` enables the repository Sponsor button for the maintainer's GitHub Sponsors profile. Changes to it need the maintainer's review (`CODEOWNERS`), because it decides where donations go.
 
