@@ -148,11 +148,13 @@ REQUIRE_CHAIN = case "$$CHAIN" in ''|0*|*[!0123456789]*) echo "CHAIN must be a c
 # CHAINS_FILE in .env would swap the committed chains.json for another chain list; that is test-only (the local flow
 # sets it itself), so a real release refuses it, and so LOCAL_CHAINS_OK, its opt-in. This grep is an early hint for the
 # usual spellings; chain_config.py enforces the refusal where the file is read. .env is only grepped, never sourced.
+# FOUNDRY_* and DAPP_* (forge reads both prefixes, in any letter case) would change the compiled bytecode and so the
+# addresses behind the manifest; nothing downstream re-checks them, so for these variables the grep is the only check.
 require-release-env:
 	@test -f .env || { echo "Create .env from .env.example first"; exit 1; }
 	@grep -q '^KEYSTORE_DIR=.' .env || { echo "Set KEYSTORE_DIR in .env"; exit 1; }
 	@! grep -Eq '^[[:space:]]*(export[[:space:]]+)?(CHAINS_FILE|LOCAL_CHAINS_OK)[[:space:]]*[=:]' .env || { echo "CHAINS_FILE and LOCAL_CHAINS_OK are test-only and must not be set in .env for a release; remove them so chains.json is used"; exit 1; }
-	@! grep -Eq '^[[:space:]]*(export[[:space:]]+)?FOUNDRY_[A-Z0-9_]*[[:space:]]*[=:]' .env || { echo "FOUNDRY_* settings must not be set in .env for a release: they change the compiled bytecode (and so the addresses) while the manifest records the foundry.toml settings; remove them"; exit 1; }
+	@! grep -Eiq '^[[:space:]]*(export[[:space:]]+)?(FOUNDRY|DAPP)_[A-Z0-9_]*[[:space:]]*[=:]' .env || { echo "FOUNDRY_* and DAPP_* settings must not be set in .env for a release: they change the compiled bytecode (and so the addresses) while the manifest records the foundry.toml settings; remove them"; exit 1; }
 
 release-preflight: require-release-env ## Read-only checks on every chain id in CHAINS (.env; chain data in chains.json)
 	$(RELEASE) "script/release.sh preflight"

@@ -42,7 +42,15 @@ contract PreflightDeployment is Script, DeploymentGuards {
 
     /// @notice Logs and returns the implementation and proxy addresses for OWNER and SALT_LABEL. Needs no chain access.
     function predict() public returns (address implementation, address proxy) {
-        (implementation, proxy) = new DeploySoloPostLayer().predict(vm.envAddress("OWNER"), vm.envString("SALT_LABEL"));
+        return logPredicted(vm.envAddress("OWNER"), vm.envString("SALT_LABEL"));
+    }
+
+    /// @notice Logs and returns the addresses `predict` would for an explicit `owner` and `saltLabel`.
+    function logPredicted(address owner, string memory saltLabel)
+        public
+        returns (address implementation, address proxy)
+    {
+        (implementation, proxy) = new DeploySoloPostLayer().predict(owner, saltLabel);
         console.log("Predicted implementation:", implementation);
         console.log("Predicted proxy:", proxy);
         // The single line release tooling parses; keep its format stable.

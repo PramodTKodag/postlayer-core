@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import chain_config
+import hide_urls
 
 DEPLOY_FACTORY = "0x4e59b44847b379578588920cA78FbF26c0B4956C"
 IMPLEMENTATION_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
@@ -40,14 +41,12 @@ def need(name):
     return value
 
 
-def run(command, env=None, secrets=()):
-    """Run a command and return stripped stdout; error text has any secret value masked."""
+def run(command, env=None):
+    """Run a command and return stripped stdout; error text has every URL hidden (it may carry an RPC key)."""
     result = subprocess.run(command, capture_output=True, text=True, env=env)
     if result.returncode != 0:
         detail = "\n".join(part for part in (result.stdout.strip(), result.stderr.strip()) if part)
-        for secret in secrets:
-            detail = detail.replace(secret, "<redacted>")
-        fail(f"'{' '.join(command[:2])}' failed (exit status {result.returncode}):\n{detail}")
+        fail(f"'{' '.join(command[:2])}' failed (exit status {result.returncode}):\n{hide_urls.hide(detail)}")
     return result.stdout.strip()
 
 
@@ -66,7 +65,7 @@ def chain_label(chain):
 
 def cast(args, rpc_url):
     env = {**os.environ, "ETH_RPC_URL": rpc_url}
-    return run(["cast", *args], env=env, secrets=(rpc_url,))
+    return run(["cast", *args], env=env)
 
 
 PREDICTED_LINE = re.compile(

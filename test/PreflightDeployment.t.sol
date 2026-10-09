@@ -81,18 +81,18 @@ contract PreflightDeploymentTest is Test {
         preflight.run(rpcUrlEnvVars, ids);
     }
 
-    function test_predict_matchesTheDeployScript() public {
+    // Called with explicit arguments: forge shares the process environment between parallel tests, so no test here writes it.
+    function test_logPredicted_matchesTheDeployScript() public {
         address owner = makeAddr("owner");
-        vm.setEnv("OWNER", vm.toString(owner));
-        vm.setEnv("SALT_LABEL", "postlayer-test");
         (address expectedImplementation, address expectedProxy) =
             new DeploySoloPostLayer().predict(owner, "postlayer-test");
-        (address implementation, address proxy) = preflight.predict();
+        (address implementation, address proxy) = preflight.logPredicted(owner, "postlayer-test");
         assertEq(implementation, expectedImplementation);
         assertEq(proxy, expectedProxy);
+    }
 
-        vm.setEnv("SALT_LABEL", "");
+    function test_RevertWhen_logPredictedSaltLabelIsEmpty() public {
         vm.expectRevert(DeploySoloPostLayer.EmptySaltLabel.selector);
-        preflight.predict();
+        preflight.logPredicted(makeAddr("owner"), "");
     }
 }

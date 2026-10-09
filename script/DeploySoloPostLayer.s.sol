@@ -24,12 +24,24 @@ contract DeploySoloPostLayer is Script, DeploymentGuards {
     string private constant IMPLEMENTATION_SALT_PART = "implementation";
     string private constant PROXY_SALT_PART = "proxy";
 
-    /// @notice Reads OWNER, OWNER_IS_EOA, SALT_LABEL and EXPECTED_CHAIN_ID from the environment, checks the chain,
-    /// logs the predicted addresses and deploys both contracts.
+    /// @notice Reads OWNER, OWNER_IS_EOA, SALT_LABEL and EXPECTED_CHAIN_ID from the environment, then runs
+    /// `broadcastDeploy`. OWNER_IS_EOA left unset or empty means false: an owner without code is refused.
     function run() external returns (address implementation, address proxy) {
-        address owner = vm.envAddress("OWNER");
-        string memory saltLabel = vm.envString("SALT_LABEL");
-        _requireDeployable(vm.envUint("EXPECTED_CHAIN_ID"), owner, vm.envOr("OWNER_IS_EOA", false));
+        return broadcastDeploy(
+            vm.envAddress("OWNER"),
+            vm.envString("SALT_LABEL"),
+            vm.envUint("EXPECTED_CHAIN_ID"),
+            vm.envOr("OWNER_IS_EOA", false)
+        );
+    }
+
+    /// @notice Checks the chain (see `DeploymentGuards`), logs the predicted addresses and deploys both contracts in a
+    /// broadcast. Reverts before broadcasting anything when a check fails.
+    function broadcastDeploy(address owner, string memory saltLabel, uint256 expectedChainId, bool ownerIsEoa)
+        public
+        returns (address implementation, address proxy)
+    {
+        _requireDeployable(expectedChainId, owner, ownerIsEoa);
 
         (address predictedImplementation, address predictedProxy) = predict(owner, saltLabel);
         console.log("Predicted implementation:", predictedImplementation);

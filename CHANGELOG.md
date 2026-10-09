@@ -8,19 +8,17 @@ All notable changes are recorded here. Format based on [Keep a Changelog](https:
 - `release-preflight` now requires `OWNER` to have code on every target chain unless `OWNER_IS_EOA=true` is set, so a contract-wallet owner that does not exist on one chain cannot become the owner of that chain's proxy. `checkChain` takes `owner` and `ownerIsEoa`.
 - Documented that tips go to the publishing address and do not follow ownership changes (deploy with the final owner from day one).
 - `docs/AUDIT.md`: scope, trust model, tested invariants, known limitations and static-analysis triage for reviewers.
-
 - The deploy script itself now refuses to broadcast unless the chain id equals `EXPECTED_CHAIN_ID`, the factory has the pinned code, and `OWNER` has code on that chain (unless `OWNER_IS_EOA=true`). `release.sh deploy` sets `EXPECTED_CHAIN_ID` from `chains.json` and refuses a chain that is not in `CHAINS`. Before, only the optional preflight enforced these checks. The checks live in `script/DeploymentGuards.sol`, shared with the preflight.
-- `make require-release-env` refuses `FOUNDRY_*` settings in `.env`: they change the compiled bytecode (and so the addresses) while the manifest records the `foundry.toml` settings.
+- `make require-release-env` refuses `FOUNDRY_*` and `DAPP_*` settings in `.env` (any letter case): they change the compiled bytecode (and so the addresses) while the manifest records the `foundry.toml` settings.
 
 ### Changed
 - `make test-upgrades` now validates `SoloPostLayer` against a build of the released tag (`testnet-0.1.0`), so storage-layout regressions against the released version fail. New `make upgrade-reference` builds that baseline; CI fetches tags for it.
 - Release manifests (`deployments/`) are no longer committed. The repo ships the deploy tooling only; every integrator deploys and records their own instance.
 
 ### Fixed
-- `release.sh deploy` and `fork-test` now hide URLs in forge's output too, and every command hides any URL in any spelling (`script/hide_urls.py`, placeholder `<url hidden>`), including the normalized form forge prints (lowercased host, default port dropped), which the earlier exact-string match missed. Output is streamed and forge's exit status is kept.
+- `release.sh preflight`, `deploy`, `check` and `fork-test` hide any `scheme://...` text in forge's output (`script/hide_urls.py`, placeholder `<url hidden>`), including the normalized form forge prints (lowercased host, default port dropped), which an exact-string match misses. A bare host is not recognised and `forge verify-contract` is not filtered. Output is streamed, forge's exit status is kept (128 plus the signal number when it is killed), SIGINT and SIGTERM are passed on, and the filter always waits for forge. The manifest writer uses the same rule for `cast` errors. `release.sh deploy` and `verify` no longer print `cast`'s error text when the RPC does not answer `chain-id`, and a chain id listed twice in `CHAINS` is rejected by `release.sh` and the manifest writer.
 - `make test-fork` takes the RPC URL from `FORK_RPC_URL` instead of `FORK_URL=...`, so it is no longer on a command line, and runs at `-vv` with URLs hidden.
 - The local deploy test no longer depends on `OWNER_IS_EOA` being unset: forge fills an unset variable from a developer's own `.env`.
-- `release.sh preflight` and `check` replace every configured RPC URL (from `chains.json` or a `CHAIN_<id>_RPC_URL` override) with a placeholder in forge's output, on success and on failure, and keep forge's exit status. `release.sh deploy` and `verify` no longer print `cast`'s error text when the RPC does not answer `chain-id`, and a chain id listed twice in `CHAINS` is rejected by `release.sh` and the manifest writer.
 - `release.sh deploy` now gives `forge script` the RPC URL through `FOUNDRY_ETH_RPC_URL`. `forge script` ignores `ETH_RPC_URL`, so the deploy simulated on an empty local chain and failed with `FactoryNotDeployed`. The URL still stays out of argv.
 - `release.sh deploy` now runs `forge script` with `--skip-simulation --slow`. Forge's local simulation under-priced contract creation on Ethereum Sepolia, so the gas limit was too low and both deploy transactions reverted on-chain (the factory's CREATE2 ran out of gas). Each transaction's gas is now estimated by the chain, and the proxy is sent after the implementation is confirmed.
 

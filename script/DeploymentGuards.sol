@@ -14,12 +14,17 @@ abstract contract DeploymentGuards {
     /// that was not declared with OWNER_IS_EOA=true.
     error OwnerHasNoCode(uint256 chainId, address owner);
 
+    /// @dev Reverts unless the selected chain is `expectedChainId`.
+    function _requireChainId(uint256 expectedChainId) internal view {
+        if (block.chainid != expectedChainId) revert WrongChainId(expectedChainId, block.chainid);
+    }
+
     /// @dev Reverts unless the selected chain is `expectedChainId`, has the pinned deterministic factory, and `owner`
     /// has code. A proxy initialized with a contract-wallet owner that has no code on this chain could later be owned
     /// by whoever deploys code at that address, so such an owner must already exist here; an EOA owner is declared
     /// with `ownerIsEoa`. Errors name the chain id, never the RPC URL.
     function _requireDeployable(uint256 expectedChainId, address owner, bool ownerIsEoa) internal view {
-        if (block.chainid != expectedChainId) revert WrongChainId(expectedChainId, block.chainid);
+        _requireChainId(expectedChainId);
         address factory = DeterministicFactory.ADDRESS;
         if (factory.code.length == 0) revert FactoryMissing(block.chainid);
         if (factory.codehash != FACTORY_CODEHASH) revert FactoryCodehashMismatch(block.chainid, factory.codehash);

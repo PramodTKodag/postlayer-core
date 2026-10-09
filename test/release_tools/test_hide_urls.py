@@ -1,10 +1,20 @@
 """Offline tests for script/hide_urls.py. Run: python3 -m unittest discover -s test/release_tools"""
+import importlib.util
+import os
+import signal
 import subprocess
 import sys
+import tempfile
+import time
 import unittest
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parents[2] / "script" / "hide_urls.py"
+
+
+spec = importlib.util.spec_from_file_location("hide_urls", SCRIPT)
+hide_urls = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(hide_urls)
 
 
 def run(stdout="", stderr="", status=0):
@@ -54,12 +64,42 @@ class HideUrlsCase(unittest.TestCase):
     def test_fails_when_the_command_does_not_exist(self):
         result = subprocess.run([sys.executable, str(SCRIPT), "no-such-command-xyz"], capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("no-such-command-xyz", result.stdout)
+        self.assertIn("no-such-command-xyz", result.stderr)
 
     def test_fails_without_a_command(self):
         result = subprocess.run([sys.executable, str(SCRIPT)], capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("usage", result.stderr)
+
+    def test_hide_function_hides_urls_in_text(self):
+        # the manifest writer uses this, so there is one masking rule
+        self.assertEqual(hide_urls.hide("failed (http://localhost/v2/KEY99)"), "failed (<url hidden>)")
+
+    def test_survives_output_that_is_not_utf8_and_keeps_the_status(self):
+        child = "import sys; sys.stdout.buffer.write(b'ok https://a/KEY \\xff\\nlater https://b/KEY\\n'); sys.exit(3)"
+        result = subprocess.run([sys.executable, str(SCRIPT), sys.executable, "-c", child], capture_output=True)
+        self.assertEqual(result.returncode, 3)
+        self.assertEqual(result.stdout.decode("utf-8"), "ok <url hidden> \ufffd\nlater <url hidden>\n")
+
+    def test_a_command_killed_by_a_signal_gives_128_plus_the_signal(self):
+        child = "import os, signal; os.kill(os.getpid(), signal.SIGKILL)"
+        result = subprocess.run([sys.executable, str(SCRIPT), sys.executable, "-c", child], capture_output=True)
+        self.assertEqual(result.returncode, 128 + signal.SIGKILL)
+
+    def test_a_signal_to_the_filter_reaches_the_command_and_the_filter_waits_for_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pid_file = Path(tmp) / "child.pid"
+            child = (f"import os, time; open({str(pid_file)!r}, 'w').write(str(os.getpid())); "
+                     "print('started', flush=True); time.sleep(30)")
+            filter_process = subprocess.Popen([sys.executable, str(SCRIPT), sys.executable, "-c", child],
+                                              stdout=subprocess.PIPE, text=True)
+            self.assertEqual(filter_process.stdout.readline().strip(), "started")
+            child_pid = int(pid_file.read_text())
+            filter_process.send_signal(signal.SIGTERM)
+            self.assertEqual(filter_process.wait(timeout=10), 128 + signal.SIGTERM)
+            time.sleep(0.2)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(child_pid, 0)  # the command is gone, not orphaned
 
 
 if __name__ == "__main__":

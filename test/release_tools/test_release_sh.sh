@@ -370,11 +370,13 @@ export LOCAL_CHAINS_OK=1
 LOCAL_CHAINS_OK: 1
 LINES
 
-# A FOUNDRY_* setting in .env (read by forge in the release container) can change the compiled bytecode, and with it the
-# addresses, while the manifest still records the foundry.toml settings, so the guard refuses every spelling.
+# A FOUNDRY_* or DAPP_* setting in .env (read by forge in the release container, in any letter case) can change the
+# compiled bytecode, and with it the addresses, while the manifest still records the foundry.toml settings, so the guard
+# refuses every spelling. Nothing downstream re-checks these, so this grep is the only check.
 guard_env 'KEYSTORE_DIR=/keys
 # FOUNDRY_EVM_VERSION=cancun
 MY_FOUNDRY_X=1
+MY_dapp_x=1
 '
 [ "$STATUS" -eq 0 ] && pass "release guard ignores commented FOUNDRY_ lines and similarly named variables" || bad "release guard ignores commented FOUNDRY_ lines and similarly named variables"
 while IFS= read -r line; do
@@ -382,7 +384,7 @@ while IFS= read -r line; do
 $line
 "
   expect_failure "release guard on the .env line '$line'"
-  expect_output "release guard names FOUNDRY_ for '$line'" "FOUNDRY_"
+  expect_output "release guard names FOUNDRY_ for '$line'" "FOUNDRY_\* and DAPP_\*"
 done <<'LINES'
 FOUNDRY_EVM_VERSION=cancun
 FOUNDRY_OPTIMIZER_RUNS=1
@@ -392,6 +394,12 @@ export FOUNDRY_EVM_VERSION=cancun
 FOUNDRY_EVM_VERSION: cancun
 FOUNDRY_EVM_VERSION = cancun
 FOUNDRY_ETH_RPC_URL=
+foundry_optimizer_runs=7
+Foundry_Evm_Version=cancun
+export foundry_evm_version=cancun
+DAPP_SOLC_VERSION=0.8.20
+dapp_optimizer_runs=7
+export DAPP_BYTECODE_HASH=ipfs
 LINES
 
 # make test-fork takes the URL from FORK_RPC_URL, so it never appears in a command line (RUN_TOOLS=echo keeps docker out of it)

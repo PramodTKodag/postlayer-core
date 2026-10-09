@@ -8,7 +8,7 @@ CHAIN_B=http://anvil-b:8545
 DEPLOYER_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
 export OWNER=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
-# Anvil account 0 is a plain account (no code); declaring it keeps preflight from demanding code at the owner address.
+# Anvil account 0 is a plain account (no code); declaring it keeps preflight and the deploy script from demanding code at the owner address.
 export OWNER_IS_EOA=true
 export SALT_LABEL=postlayer-local
 
@@ -60,6 +60,8 @@ expect_deploy_refusal() { # <rpc url> <expected chain id> <expected error text>;
 }
 (OWNER_IS_EOA=; OWNER="$WALLET_OWNER"; export OWNER; expect_deploy_refusal "$CHAIN_B" 31338 "OwnerHasNoCode(31338")
 (expect_deploy_refusal "$CHAIN_B" 31337 "WrongChainId(31337")
+# No expected chain id means no deploy: the variable is required, an empty one does not parse.
+(expect_deploy_refusal "$CHAIN_B" "" "EXPECTED_CHAIN_ID")
 cast rpc --rpc-url "$CHAIN_A" anvil_setCode "$WALLET_OWNER" 0x > /dev/null
 
 # Write a manifest for the local chains into a temp dir and check its shape.

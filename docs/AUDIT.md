@@ -4,7 +4,7 @@ Scope, trust model, invariants and static-analysis triage for `postlayer-core`, 
 
 ## Scope
 
-In scope: everything under `src/` (`SoloPostLayer` and the four modules, about 340 lines) and the deterministic deploy path in `script/` (`DeploySoloPostLayer.s.sol`, `DeterministicFactory.sol`). Out of scope: OpenZeppelin dependencies in `lib/`, tests, and the off-chain release tooling.
+In scope: everything under `src/` (`SoloPostLayer` and the four modules, about 340 lines) and the deterministic deploy path in `script/` (`DeploySoloPostLayer.s.sol`, `DeploymentGuards.sol`, `DeterministicFactory.sol`). Out of scope: OpenZeppelin dependencies in `lib/`, tests, and the off-chain release tooling.
 
 Build: solc 0.8.37, `evm_version = "shanghai"`, optimizer 200 runs, `bytecode_hash = "none"`. Review the tagged release (`testnet-0.1.0`), not a moving branch.
 
