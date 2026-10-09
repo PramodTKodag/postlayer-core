@@ -1,3 +1,5 @@
+![postlayer-core: your blog, on-chain; your readers, tipping you](docs/assets/banner.jpg)
+
 # postlayer-core
 
 [![CI](https://github.com/PramodTKodag/postlayer-core/actions/workflows/ci.yml/badge.svg)](https://github.com/PramodTKodag/postlayer-core/actions/workflows/ci.yml)
