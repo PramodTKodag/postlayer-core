@@ -99,6 +99,34 @@ contract PreflightDeploymentTest is Test {
         preflight.checkChain(CHAIN_ID, deployer, eoaOwner, true, OWNER_CODEHASH);
     }
 
+    // The EOA flag must not switch the owner checks off: an address that has code is a contract wallet, whatever the
+    // flag says (for example a reused testnet .env), and then the code hash pin is the check that applies.
+    function test_RevertWhen_ownerIsDeclaredAnEoaButHasCode() public {
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerIsEoaHasCode.selector, CHAIN_ID, contractOwner));
+        preflight.checkChain(CHAIN_ID, deployer, contractOwner, true, bytes32(0));
+    }
+
+    // EIP-7702: an EOA that delegated to a contract has the 23 bytes 0xef0100 + delegate as its code and is still an EOA
+    // controlled by its key, so it is accepted as one. Anything else with code is not.
+    function test_checkChain_passesForAnEoaOwnerThatDelegatedWithEip7702() public {
+        vm.etch(eoaOwner, abi.encodePacked(hex"ef0100", makeAddr("delegate")));
+        preflight.checkChain(CHAIN_ID, deployer, eoaOwner, true, bytes32(0));
+    }
+
+    // Code of the delegation's length that is not a delegation, and plain contract code, are refused. (The EVM cannot
+    // hold other code that starts with 0xef0100: such code is only valid as exactly a delegation.)
+    function test_RevertWhen_ownerIsDeclaredAnEoaButHasCodeThatIsNotADelegation() public {
+        bytes[2] memory notDelegations = [
+            abi.encodePacked(hex"6000", new bytes(21)), // 23 bytes long, like a delegation
+            abi.encodePacked(hex"ef", makeAddr("delegate")) // starts with 0xef but is not 0xef0100 + address
+        ];
+        for (uint256 i = 0; i < notDelegations.length; ++i) {
+            vm.etch(eoaOwner, notDelegations[i]);
+            vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerIsEoaHasCode.selector, CHAIN_ID, eoaOwner));
+            preflight.checkChain(CHAIN_ID, deployer, eoaOwner, true, bytes32(0));
+        }
+    }
+
     function test_RevertWhen_noChainsAreGiven() public {
         string[] memory rpcUrlEnvVars = new string[](0);
         uint256[] memory ids = new uint256[](0);

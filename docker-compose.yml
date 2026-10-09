@@ -26,18 +26,24 @@ services:
   # and the only one that receives .env as environment variables. It does not hide .env from the others: the file
   # sits in the workspace mount every tooling container reads, and forge auto-loads ./.env wherever it runs (which is
   # why the fork test is opt-in).
+  # What a release deploys must not be influenced by the other tooling containers (the upgrade validator runs
+  # third-party code with ffi in `tools`). So its build output and forge cache live in the container's own /tmp and
+  # are gone when it exits: every make release-* command compiles from scratch instead of trusting whatever sits in
+  # the workspace's out/ and cache/. Its compiler binaries and RPC cache are volumes `tools` does not mount.
   release:
     <<: *tools-service # takes the image, user and working_dir of `tools`; a merge replaces a key's whole value, so volumes is listed again below
     profiles: ["tools"]
     environment:
       - FOUNDRY_PROFILE=default # the manifest reads [profile.default]
+      - FOUNDRY_OUT=/tmp/release-out
+      - FOUNDRY_CACHE_PATH=/tmp/release-cache
     env_file:
       - path: .env
         required: false # `make release-*` checks it exists; absent must not break `tools`
-    volumes: # the three `tools` volumes again, plus the keystores
+    volumes: # the workspace again, its own compiler and RPC caches, plus the keystores
       - .:/workspace
-      - svm-cache:/home/foundry/.svm
-      - foundry-cache:/home/foundry/.foundry/cache
+      - release-svm-cache:/home/foundry/.svm
+      - release-foundry-cache:/home/foundry/.foundry/cache
       - ${KEYSTORE_DIR:-/var/empty}:/home/foundry/.foundry/keystores:ro
 
   # Two local chains with different chain IDs, to test same-address deployment across chains.
@@ -67,3 +73,5 @@ services:
 volumes:
   svm-cache:
   foundry-cache:
+  release-svm-cache:
+  release-foundry-cache:

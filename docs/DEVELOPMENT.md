@@ -36,6 +36,8 @@ Update a version by editing the Dockerfile (or `foundry.toml` for solc), rebuild
 
 The container runs as your user, so files in `out/` and `cache/` belong to you. Compiler downloads are cached in a named Docker volume; `make clean` removes it.
 
+The `release` container (every `make release-*`) does not share state with the other tooling: it builds into its own `/tmp` output and cache, which disappear when it exits, so each release command compiles from scratch instead of trusting whatever is in the workspace `out/` and `cache/`; and it has its own compiler and RPC-cache volumes. This keeps code run by the other tools (the upgrade validator runs third-party code with ffi) from changing the bytecode a release deploys. The first release command downloads the compiler again; `make test-release-isolation` checks the setup.
+
 ## Common tasks
 
 Run `make help` for the full list.
@@ -53,6 +55,7 @@ Run `make help` for the full list.
 | Format / check format | `make fmt` / `make fmt-check` |
 | Static analysis | `make slither`, `make aderyn`, or `make analyze` |
 | Release helper tests (offline) | `make test-release-tools` |
+| Release container isolation check (host) | `make test-release-isolation` |
 | Everything CI runs | `make ci` |
 | Add a dependency | `make install DEP=OpenZeppelin/openzeppelin-contracts-upgradeable@v5.7.0` |
 | Shell in the container | `make shell` |
@@ -90,7 +93,7 @@ The release commands run in a separate `release` Compose service. It is the only
    | `CHAINS` | Space-separated chain ids of this release (for example `"84532 11155111"`); each needs an entry in `chains.json`; digits only, no leading zero, at most 18 digits; chain names are refused |
    | `CHAIN_<id>_RPC_URL` | Optional. Your own RPC URL for that chain (may contain a secret); replaces the public `rpcUrl` from `chains.json` |
    | `OWNER` | Proxy owner |
-   | `OWNER_IS_EOA` | Set to `true` when `OWNER` is a plain account (EOA); `OWNER_CODEHASH` must then stay empty (both set is refused). Left unset, `OWNER` is a contract wallet: preflight and the deploy script require it to have the pinned code on every target chain, so a wallet such as a Safe must already be deployed on each one |
+   | `OWNER_IS_EOA` | Set to `true` when `OWNER` is a plain account (EOA); `OWNER_CODEHASH` must then stay empty (both set is refused), and the address must have no contract code (an address with code is refused as an EOA; the code of an EIP-7702 delegated account, `0xef0100` plus the delegate address, does not count). Left unset, `OWNER` is a contract wallet: preflight and the deploy script require it to have the pinned code on every target chain, so a wallet such as a Safe must already be deployed on each one |
    | `OWNER_CODEHASH` | Required when `OWNER_IS_EOA` is not `true`: the code hash of the owner contract wallet (`cast codehash <OWNER> --rpc-url <chain>`, read on a chain where you control it). `release.sh` stops if it is missing, and forge stops if it is not a 32-byte hex value. Preflight and the deploy script refuse a chain where `OWNER` has different code, for example a contract that someone else deployed at that address first. It does not show who controls the wallet: check the signers and threshold on every chain yourself |
    | `SALT_LABEL` | Names the deployment; part of the address |
    | `DEPLOYER_ADDRESS` | Public address of the keystore account (balance check and `--sender`) |

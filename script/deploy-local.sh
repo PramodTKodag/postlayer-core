@@ -71,6 +71,8 @@ set_wallet_code "$CHAIN_A" 0x00
 (OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; expect_preflight_refusal "OwnerHasNoCode(31338"
  case "$out" in *"(31337"*) echo "error: chain A has the owner's pinned code but was refused" >&2; echo "$out" >&2; exit 1 ;; esac)
 (OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH=zz; export OWNER OWNER_CODEHASH; expect_preflight_refusal "failed parsing")
+# Declaring the wallet an EOA must not switch the owner checks off: an address with code is refused as an EOA.
+(OWNER="$WALLET_OWNER" OWNER_CODEHASH=; export OWNER OWNER_CODEHASH; expect_preflight_refusal "OwnerIsEoaHasCode(31337")
 # The pinned code on both chains passes on both.
 set_wallet_code "$CHAIN_B" 0x00
 (OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; expect_preflight_ok)
@@ -97,6 +99,7 @@ set_wallet_code "$CHAIN_B" 0x
 (OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH=; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_A" 31337 "OwnerCodehashNotPinned(31337")
 (OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH=zz; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_A" 31337 "failed parsing")
 (OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_A" 31337 "OwnerIsEoaWithCodehash(31337")
+(OWNER="$WALLET_OWNER" OWNER_CODEHASH=; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_A" 31337 "OwnerIsEoaHasCode(31337")
 (expect_deploy_refusal "$CHAIN_B" 31337 "WrongChainId(31337")
 # No expected chain id means no deploy: the variable is required, an empty one does not parse.
 (expect_deploy_refusal "$CHAIN_B" "" "EXPECTED_CHAIN_ID")
