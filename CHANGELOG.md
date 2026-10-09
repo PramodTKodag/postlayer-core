@@ -5,6 +5,9 @@ All notable changes are recorded here. Format based on [Keep a Changelog](https:
 ## [Unreleased]
 
 ### Added
+- Open-source community files: `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1, conduct reports through GitHub's private reporting), `SUPPORT.md`, `GOVERNANCE.md`, `CITATION.cff`, `docs/USED_BY.md`, bug and feature issue forms (blank issues off, with security and Discussions links), and README badges plus a license-and-credit section.
+- Dependabot weekly updates for GitHub Actions, npm and the Solidity submodules, and a pinned OpenSSF Scorecard workflow that publishes its result and uploads it to code scanning.
+- An `SPDX-FileCopyrightText` line in every contract and script source, so the copyright notice travels with the verified source of a deployment. Comments only: the compiled bytecode is unchanged.
 - `release-preflight` now requires `OWNER` to have code on every target chain unless it is declared an EOA with `OWNER_IS_EOA=true` (which in turn requires no contract code), so a contract-wallet owner that does not exist on one chain cannot become the owner of that chain's proxy. `checkChain` takes the owner, whether it is an EOA, and (below) its pinned code hash.
 - Documented that tips go to the publishing address and do not follow ownership changes (deploy with the final owner from day one).
 - `docs/AUDIT.md`: scope, trust model, tested invariants, known limitations and static-analysis triage for reviewers.

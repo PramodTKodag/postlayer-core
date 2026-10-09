@@ -1,10 +1,10 @@
 # Contributing
 
-Thanks for helping. This project handles other people's money, so changes are reviewed carefully.
+Thanks for helping. This project handles other people's money, so changes are reviewed carefully. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md); how decisions are made is in [GOVERNANCE.md](GOVERNANCE.md).
 
 ## Before you start
 
-- Open an issue to discuss anything larger than a small fix.
+- Open an issue to discuss anything larger than a small fix. Questions go in [Discussions](https://github.com/PramodTKodag/postlayer-core/discussions) (see [SUPPORT.md](SUPPORT.md)).
 - Security problems go through [SECURITY.md](SECURITY.md), never a public issue.
 
 ## Setup
@@ -33,7 +33,7 @@ Details: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 - A change that weakens a check, widens an owner's power or touches money flow needs a clear explanation in the PR and a test for it.
 - Storage changes are append-only and need an upgrade test (deploy old, write state, upgrade, verify).
 - Add fuzz or invariant tests for any arithmetic or accounting change.
-- No new dependency without a reason in the PR description.
+- No new dependency without a reason in the PR description. Dependabot opens weekly update PRs; a Solidity dependency bump changes bytecode, so it is reviewed like a contract change and needs `make test-upgrades`.
 - Keep contracts small; avoid speculative abstractions.
 
 ## Commit messages

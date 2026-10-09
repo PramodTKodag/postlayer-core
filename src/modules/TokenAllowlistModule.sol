@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 Pramod Kodag
 pragma solidity 0.8.37;
 
 import {ITokenAllowlist} from "../interfaces/ITokenAllowlist.sol";

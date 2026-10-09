@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 Pramod Kodag
 pragma solidity 0.8.37;
 
 /// @notice The standard deterministic deployment proxy (Arachnid), present at the same address on most chains.

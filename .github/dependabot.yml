@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        patterns: ["*"]
+  # Solidity dependencies (OpenZeppelin, forge-std). A bump changes bytecode and may change storage layout:
+  # review it like a contract change, and run make test-upgrades.
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: weekly
