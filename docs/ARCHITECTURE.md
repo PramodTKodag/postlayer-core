@@ -24,7 +24,7 @@ A post stores a pointer, not the content: `contentType`, `contentUri` (IPFS or A
 | `TokenAllowlistModule` | Owner-approved tip tokens with a per-token minimum tip (implemented); own ERC-7201 slot `postlayer.storage.TokenAllowlist`. The native coin is the zero address; a minimum of zero is not allowed, so a zero minimum means "not approved" |
 | `SoloPostLayer` | Deployable contract for solo mode: only the owner publishes (implemented, UUPS) |
 
-Interfaces (`IPostRegistry`, `IReactions`, `ITipping`, `ITokenAllowlist`) are frozen and versioned before other projects build on them.
+Interfaces (`IPostRegistry`, `IReactions`, `ITipping`, `ITokenAllowlist`) are meant to be frozen and versioned before other projects build on them. They are not frozen yet.
 
 ## Tips
 
@@ -45,11 +45,11 @@ The tip goes to the post's stored author, not to a caller-chosen address. Hidden
 - Deploy the proxy with the `initialize` calldata passed to its constructor, so the proxy is created and initialized in one transaction. An uninitialized proxy could be initialized by anyone who front-runs a separate `initialize` call.
 - Upgrades are covered by tests: deploy v1, write state, upgrade, check the state survived (`make test`), and an OpenZeppelin upgrade-safety check (`make test-upgrades`).
 
-Trade-off: an upgradeable contract asks users to trust the upgrade process, not only the code. Because tips are paid out immediately, the contract stores no balances, but ERC-20 allowances that tippers grant to the proxy persist across upgrades, so a compromised upgrade path could pull tokens up to those allowances and redirect future tips. Front ends should request exact-amount approvals, and tippers should revoke leftovers. The timelock exists for that reason.
+Trade-off: an upgradeable contract asks users to trust the upgrade process, not only the code. Because tips are paid out immediately, the contract stores no balances, but ERC-20 allowances that tippers grant to the proxy persist across upgrades, so a compromised upgrade path could pull tokens up to those allowances and redirect future tips. Front ends should request exact-amount approvals, and tippers should revoke leftovers. The planned timelock is for that reason; today the owner can upgrade instantly.
 
 ## Same address on every chain
 
-Implemented for local chains (`script/DeploySoloPostLayer.s.sol`); deployment to real chains has not been done.
+Implemented in `script/DeploySoloPostLayer.s.sol` and proven on the two local chains. The `testnet-0.1.0` release was deployed to Ethereum Sepolia with the release tooling in [DEVELOPMENT.md](DEVELOPMENT.md#releasing-to-testnets); no mainnet deployment exists, and this repository publishes no shared deployment.
 
 - Deploy through the standard deterministic CREATE2 factory (`0x4e59b44847b379578588920cA78FbF26c0B4956C`). Real chains must already have it; the deploy script fails if it is missing. Only local anvil chains get it installed (`script/InstallFactory.s.sol`).
 - The implementation and the proxy salts are derived from `SALT_LABEL`. The proxy is created with its initializer calldata (`initialize(OWNER)`) in the same transaction, so initialization cannot be front-run.

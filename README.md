@@ -6,7 +6,7 @@
 
 On-chain publishing layer: authors publish posts, readers like them and tip the author in native coin or approved tokens. Upgradeable (UUPS), chain-agnostic, content-type neutral.
 
-> **Status: post registry, UUPS `SoloPostLayer` and a same-address deployment script (proven on the two local chains) are implemented; free likes and tips (native coin and owner-approved ERC-20 tokens) are implemented too; real-chain deployment is not. Not audited. Do not deploy to mainnet.**
+> **Status: post registry, UUPS `SoloPostLayer`, free likes, tips (native coin and owner-approved ERC-20 tokens), a same-address deployment script (proven on the two local chains) and testnet release tooling are implemented; the `testnet-0.1.0` release was deployed to Ethereum Sepolia. Not audited. Do not deploy to mainnet.**
 
 ## What it is
 
@@ -23,13 +23,13 @@ Implemented:
 
 - Publish, update and hide posts (`contentType`, `contentUri`, `contentHash`).
 - UUPS upgradeable proxy: ship new features and keep the same address.
-- Same-address deployment through a CREATE2 factory, proven on the two local chains.
+- Same-address deployment through a CREATE2 factory, proven on the two local chains, with release tooling for real chains (preflight, deploy, verify, check, manifest).
 - Free likes with O(1) cost: one per address per post, the author cannot like their own post, no new likes on hidden posts.
 - Tips paid straight to the post's author in the native coin or an ERC-20 the owner has approved, each token with its own minimum tip. The contract holds no tip balances; a rejected payout reverts the tip.
 
 Planned:
 
-- Deployment to real EVM chains with the same address on each.
+- Mainnet deployment, which needs an audit and an owner that is a multisig behind a timelock first.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design.
 
@@ -63,6 +63,7 @@ More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 ├── docker-compose.yml    Tooling container and two local anvil chains
 ├── Makefile              Single entry point for every task
 ├── foundry.toml          Compiler and test settings
+├── chains.json           Public chain data for releases (chain id, explorer, default RPC)
 ├── docs/                 Architecture, development, conventions and users
 └── .github/              CI, security scans, dependency updates, issue and PR templates
 ```

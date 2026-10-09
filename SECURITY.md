@@ -2,7 +2,7 @@
 
 ## Status
 
-This project is in design and infrastructure phase. It has **not** been audited. Do not use it with real funds.
+The contracts are implemented and a testnet release (`testnet-0.1.0`) exists, but the project has **not** been audited. Do not use it with real funds.
 
 ## Reporting a vulnerability
 
