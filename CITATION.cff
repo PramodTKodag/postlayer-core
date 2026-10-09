@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use PostLayer in your work, please cite it as below."
+title: "PostLayer Core"
+abstract: "On-chain publishing layer: UUPS-upgradeable posts, free likes and tipping, deployed at the same address on every chain."
+type: software
+license: MIT
+repository-code: "https://github.com/PramodTKodag/postlayer-core"
+authors:
+  - family-names: "Kodag"
+    given-names: "Pramod"
+    alias: "PramodTKodag"
+keywords:
+  - solidity
+  - ethereum
+  - evm
+  - publishing
+  - tipping

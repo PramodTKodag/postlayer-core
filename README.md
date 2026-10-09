@@ -1,5 +1,9 @@
 # postlayer-core
 
+[![CI](https://github.com/PramodTKodag/postlayer-core/actions/workflows/ci.yml/badge.svg)](https://github.com/PramodTKodag/postlayer-core/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/PramodTKodag/postlayer-core/badge)](https://scorecard.dev/viewer/?uri=github.com/PramodTKodag/postlayer-core)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 On-chain publishing layer: authors publish posts, readers like them and tip the author in native coin or approved tokens. Upgradeable (UUPS), chain-agnostic, content-type neutral.
 
 > **Status: post registry, UUPS `SoloPostLayer` and a same-address deployment script (proven on the two local chains) are implemented; free likes and tips (native coin and owner-approved ERC-20 tokens) are implemented too; real-chain deployment is not. Not audited. Do not deploy to mainnet.**
@@ -59,8 +63,8 @@ More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 ├── docker-compose.yml    Tooling container and two local anvil chains
 ├── Makefile              Single entry point for every task
 ├── foundry.toml          Compiler and test settings
-├── docs/                 Architecture, development and conventions
-└── .github/workflows/    CI
+├── docs/                 Architecture, development, conventions and users
+└── .github/              CI, security scans, dependency updates, issue and PR templates
 ```
 
 ## Documentation
@@ -71,13 +75,21 @@ More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Docker setup, commands, test layers, CI |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | Naming and code style |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to propose and submit changes |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | How we treat each other |
+| [GOVERNANCE.md](GOVERNANCE.md) | Who decides, and how changes and releases happen |
+| [SUPPORT.md](SUPPORT.md) | Where to ask questions and report bugs |
 | [SECURITY.md](SECURITY.md) | How to report a vulnerability |
+| [docs/USED_BY.md](docs/USED_BY.md) | Projects built on PostLayer |
 | [CHANGELOG.md](CHANGELOG.md) | Release notes |
 
 ## Security
 
 This project is intended to handle other people's money. It is unaudited. Read [SECURITY.md](SECURITY.md) before using any code from this repository.
 
-## License
+## Using PostLayer
 
-MIT. See [LICENSE](LICENSE).
+Every integrator deploys their own instance with their own owner and salt label; this repository publishes no shared deployment. You do not need permission.
+
+## License and credit
+
+MIT. See [LICENSE](LICENSE). If you copy or publish this source (including as the verified source of your deployment), keep the copyright and license notice with it. If you build on PostLayer, you are welcome to add your project to [docs/USED_BY.md](docs/USED_BY.md) and to cite it with [CITATION.cff](CITATION.cff). The project is funded through [GitHub Sponsors](https://github.com/sponsors/PramodTKodag).
