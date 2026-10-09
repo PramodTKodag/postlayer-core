@@ -7,7 +7,7 @@ import {DeploySoloPostLayer} from "./DeploySoloPostLayer.s.sol";
 
 /// @notice Read-only checks before a release: for every chain the RPC reports the expected chain id, the
 /// deterministic factory is present with the pinned code, the deployer can pay for gas, and OWNER has code hashing to
-/// OWNER_CODEHASH on the chain unless it is declared an EOA with OWNER_IS_EOA=true. Never sends a transaction.
+/// OWNER_CODEHASH on the chain; an owner declared an EOA with OWNER_IS_EOA=true must have no contract code. Never sends a transaction.
 /// Errors name the chain id, never the RPC URL (URLs often carry API keys), and RPC URLs are read from the
 /// environment variables named in `rpcUrlEnvVars` so they never appear in script arguments or traces.
 /// Usage: OWNER=<address> (OWNER_IS_EOA=true | OWNER_CODEHASH=<bytes32>) SALT_LABEL=<label> DEPLOYER_ADDRESS=<address> forge script script/PreflightDeployment.s.sol

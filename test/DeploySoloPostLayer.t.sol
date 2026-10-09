@@ -191,6 +191,33 @@ contract DeploySoloPostLayerTest is Test {
         deployer.broadcastDeploy(owner, LABEL, block.chainid, true, OWNER_CODEHASH);
     }
 
+    // Declaring an address with code an EOA must not skip the owner checks, with or without a prior preflight.
+    function test_RevertWhen_broadcastDeployOwnerIsDeclaredAnEoaButHasCode() public {
+        vm.etch(owner, hex"00");
+
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerIsEoaHasCode.selector, block.chainid, owner));
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, true, bytes32(0));
+    }
+
+    function test_RevertWhen_broadcastDeployOwnerIsDeclaredAnEoaWithAPinAndHasCode() public {
+        vm.etch(owner, hex"00");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DeploymentGuards.OwnerIsEoaWithCodehash.selector, block.chainid, owner, OWNER_CODEHASH
+            )
+        );
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, true, OWNER_CODEHASH);
+    }
+
+    function test_broadcastDeploy_deploysWhenOwnerIsAnEoaThatDelegatedWithEip7702() public {
+        vm.etch(owner, abi.encodePacked(hex"ef0100", makeAddr("delegate")));
+
+        (, address proxy) = deployer.broadcastDeploy(owner, LABEL, block.chainid, true, bytes32(0));
+
+        assertEq(SoloPostLayer(proxy).owner(), owner);
+    }
+
     function test_RevertWhen_broadcastDeployChainIsNotTheExpectedOne() public {
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.WrongChainId.selector, 1, block.chainid));
         deployer.broadcastDeploy(owner, LABEL, 1, true, bytes32(0));
