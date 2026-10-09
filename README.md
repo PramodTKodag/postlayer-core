@@ -73,6 +73,7 @@ More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 | Doc | Contents |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules, upgradeability, storage rules, same-address deployment |
+| [docs/USAGE.md](docs/USAGE.md) | Every function, who can call it, `cast` examples, events and errors |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Docker setup, commands, test layers, CI |
 | [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | Naming and code style |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to propose and submit changes |
@@ -90,6 +91,17 @@ This project is intended to handle other people's money. It is unaudited. Read [
 ## Using PostLayer
 
 Every integrator deploys their own instance with their own owner and salt label; this repository publishes no shared deployment. You do not need permission.
+
+Once deployed, call the proxy address. The owner publishes; anyone reads, likes and tips:
+
+```sh
+cast send $PROXY "publishPost(bytes32,string,bytes32)" $(cast keccak "blog") "ipfs://<cid>" $(cast keccak "<content>") --account owner --rpc-url $RPC_URL
+cast call $PROXY "getPost(uint256)((address,bool,uint48,uint48,uint32,bytes32,bytes32,string))" 1 --rpc-url $RPC_URL
+cast send $PROXY "likePost(uint256)" 1 --account reader --rpc-url $RPC_URL
+cast send $PROXY "tipPost(uint256,address,uint256)" 1 0x0000000000000000000000000000000000000000 1000000000000000 --value 1000000000000000 --account reader --rpc-url $RPC_URL
+```
+
+Tips are off until the owner approves a token (the native coin included). Every function, who can call it, the events, the errors and more examples are in [docs/USAGE.md](docs/USAGE.md).
 
 ## License and credit
 
