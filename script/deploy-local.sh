@@ -8,13 +8,15 @@ CHAIN_B=http://anvil-b:8545
 DEPLOYER_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
 export OWNER=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
-# Anvil account 0 is a plain account (no code); declaring it keeps preflight from demanding code at the owner address.
+# Anvil account 0 is a plain account (no code); declaring it keeps preflight and the deploy script from demanding code at the owner address.
 export OWNER_IS_EOA=true
 export SALT_LABEL=postlayer-local
 
-for rpc in "$CHAIN_A" "$CHAIN_B"; do
-  forge script script/InstallFactory.s.sol --rpc-url "$rpc"
-  forge script script/DeploySoloPostLayer.s.sol --rpc-url "$rpc" --broadcast --private-key "$DEPLOYER_KEY"
+for chain in "31337 $CHAIN_A" "31338 $CHAIN_B"; do
+  set -- $chain
+  forge script script/InstallFactory.s.sol --rpc-url "$2"
+  # The deploy script refuses a chain other than EXPECTED_CHAIN_ID, so each chain's id is stated here.
+  EXPECTED_CHAIN_ID="$1" forge script script/DeploySoloPostLayer.s.sol --rpc-url "$2" --broadcast --private-key "$DEPLOYER_KEY"
 done
 
 # The scripts read each RPC url from the named environment variable, so urls never reach script arguments or traces.
@@ -38,15 +40,28 @@ expect_preflight_refusal() { # <expected error text>; runs with the caller's env
   fi
   case "$out" in *"$1"*) ;; *) echo "error: preflight failed without '$1':" >&2; echo "$out" >&2; exit 1 ;; esac
 }
-(unset OWNER_IS_EOA; expect_preflight_refusal "OwnerHasNoCode(31337")
+# An empty value stands for "not declared": forge fills a variable that is unset from ./.env, so unsetting it here would
+# let a developer's own .env change what this test checks.
 (OWNER_IS_EOA=; expect_preflight_refusal "OwnerHasNoCode(31337")
 (OWNER_IS_EOA=yes; expect_preflight_refusal "failed parsing \$OWNER_IS_EOA")
 # A contract-wallet owner that exists on chain A only: chain A passes, chain B is refused.
 WALLET_OWNER=0x1111111111111111111111111111111111111111
 cast rpc --rpc-url "$CHAIN_A" anvil_setCode "$WALLET_OWNER" 0x00 > /dev/null
-(unset OWNER_IS_EOA; OWNER="$WALLET_OWNER"; export OWNER; expect_preflight_refusal "OwnerHasNoCode(31338")
-(unset OWNER_IS_EOA; OWNER="$WALLET_OWNER"; export OWNER; out="$(script/release.sh preflight 2>&1 || true)"
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER"; export OWNER; expect_preflight_refusal "OwnerHasNoCode(31338")
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER"; export OWNER; out="$(script/release.sh preflight 2>&1 || true)"
  case "$out" in *"OwnerHasNoCode(31337"*) echo "error: chain A has the owner's code but was refused" >&2; exit 1 ;; esac)
+
+# The deploy script enforces the same checks itself, so a broadcast cannot skip the preflight: it refuses before sending anything.
+expect_deploy_refusal() { # <rpc url> <expected chain id> <expected error text>; runs with the caller's environment
+  if out="$(EXPECTED_CHAIN_ID="$2" forge script script/DeploySoloPostLayer.s.sol --rpc-url "$1" --broadcast --private-key "$DEPLOYER_KEY" 2>&1)"; then
+    echo "error: deploy should have failed with '$3'" >&2; exit 1
+  fi
+  case "$out" in *"$3"*) ;; *) echo "error: deploy failed without '$3':" >&2; echo "$out" >&2; exit 1 ;; esac
+}
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER"; export OWNER; expect_deploy_refusal "$CHAIN_B" 31338 "OwnerHasNoCode(31338")
+(expect_deploy_refusal "$CHAIN_B" 31337 "WrongChainId(31337")
+# No expected chain id means no deploy: the variable is required, an empty one does not parse.
+(expect_deploy_refusal "$CHAIN_B" "" "EXPECTED_CHAIN_ID")
 cast rpc --rpc-url "$CHAIN_A" anvil_setCode "$WALLET_OWNER" 0x > /dev/null
 
 # Write a manifest for the local chains into a temp dir and check its shape.

@@ -5,6 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {SoloPostLayer} from "../src/SoloPostLayer.sol";
 import {DeploySoloPostLayer} from "./DeploySoloPostLayer.s.sol";
+import {DeploymentGuards} from "./DeploymentGuards.sol";
 
 /// @notice Fails unless the predicted proxy exists with the expected owner and implementation on every chain, and
 /// every RPC reports the expected chain id.
@@ -12,10 +13,9 @@ import {DeploySoloPostLayer} from "./DeploySoloPostLayer.s.sol";
 /// environment variables named in `rpcUrlEnvVars` so they never appear in script arguments or traces.
 /// Usage: OWNER=<address> SALT_LABEL=<label> forge script script/CheckDeployment.s.sol
 ///   --sig 'run(string[],uint256[])' '[<rpc url env var a>,<rpc url env var b>]' '[<chain id a>,<chain id b>]'
-contract CheckDeployment is Script {
+contract CheckDeployment is Script, DeploymentGuards {
     error NoChainsToCheck();
     error LengthMismatch();
-    error WrongChainId(uint256 expected, uint256 actual);
     error NoCodeAtProxy(uint256 chainId, address proxy);
     error WrongOwner(uint256 chainId, address expected, address actual);
     error WrongImplementation(uint256 chainId, address expected, address actual);
@@ -37,7 +37,7 @@ contract CheckDeployment is Script {
 
     /// @notice Reverts unless the currently selected chain is `expectedChainId` and holds the expected proxy.
     function checkChain(uint256 expectedChainId, address owner, address proxy, address implementation) public view {
-        if (block.chainid != expectedChainId) revert WrongChainId(expectedChainId, block.chainid);
+        _requireChainId(expectedChainId);
         if (proxy.code.length == 0) revert NoCodeAtProxy(block.chainid, proxy);
         address actualImplementation = address(uint160(uint256(vm.load(proxy, ERC1967Utils.IMPLEMENTATION_SLOT))));
         if (actualImplementation != implementation) {

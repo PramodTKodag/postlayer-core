@@ -38,12 +38,17 @@ STUB
 cat > "$WORK/bin/forge" <<'STUB'
 #!/bin/sh
 echo "$*" >> "${STUB_LOG:?}"
-# STUB_FORGE_ECHO_RPC: echo the configured RPC URLs the way a provider error does; STUB_FORGE_ECHO_FAIL: then exit 1.
+# STUB_FORGE_ECHO_RPC: echo the configured RPC URLs the way a provider error does; STUB_FORGE_ECHO_TEXT: echo that text
+# instead (forge prints URLs normalized, not as configured); STUB_FORGE_ECHO_FAIL: then exit 1.
 if [ -n "${STUB_FORGE_ECHO_RPC:-}" ]; then
   printf 'provider error for %s and %s\n' "${CHAIN_84532_RPC_URL:-}" "${CHAIN_11155111_RPC_URL:-}" >&2
   [ -z "${STUB_FORGE_ECHO_FAIL:-}" ] || exit 1
 fi
-echo "base_rpc=${CHAIN_84532_RPC_URL:-} base_id=${CHAIN_84532_ID:-} eth_rpc=${CHAIN_11155111_RPC_URL:-} eth_id=${CHAIN_11155111_ID:-} fork=${RELEASE_FORK_TEST:-} foundry_rpc=${FOUNDRY_ETH_RPC_URL:-}" >> "${STUB_ENV_LOG:?}"
+if [ -n "${STUB_FORGE_ECHO_TEXT:-}" ]; then
+  printf '%s\n' "$STUB_FORGE_ECHO_TEXT" >&2
+  [ -z "${STUB_FORGE_ECHO_FAIL:-}" ] || exit 7
+fi
+echo "base_rpc=${CHAIN_84532_RPC_URL:-} base_id=${CHAIN_84532_ID:-} eth_rpc=${CHAIN_11155111_RPC_URL:-} eth_id=${CHAIN_11155111_ID:-} fork=${RELEASE_FORK_TEST:-} foundry_rpc=${FOUNDRY_ETH_RPC_URL:-} expected_chain=${EXPECTED_CHAIN_ID:-}" >> "${STUB_ENV_LOG:?}"
 case "$*" in
   *"predict()"*)
     if [ -n "${STUB_FORGE_FAIL:-}" ]; then echo "forge boom: compiler exploded"; exit 1; fi
@@ -77,6 +82,7 @@ release() {
     DEPLOYER_ADDRESS=0x00000000000000000000000000000000000000d1 KEYSTORE_ACCOUNT=testnet \
     ${STUB_CHAIN_ID:+STUB_CHAIN_ID="$STUB_CHAIN_ID"} ${STUB_FORGE_FAIL:+STUB_FORGE_FAIL="$STUB_FORGE_FAIL"} ${STUB_CAST_FAIL:+STUB_CAST_FAIL="$STUB_CAST_FAIL"} \
     ${STUB_FORGE_ECHO_RPC:+STUB_FORGE_ECHO_RPC="$STUB_FORGE_ECHO_RPC"} ${STUB_FORGE_ECHO_FAIL:+STUB_FORGE_ECHO_FAIL="$STUB_FORGE_ECHO_FAIL"} \
+    ${STUB_FORGE_ECHO_TEXT:+STUB_FORGE_ECHO_TEXT="$STUB_FORGE_ECHO_TEXT"} \
     sh "$ROOT/script/release.sh" "$@" > "$OUT" 2>&1 < "$input"
   STATUS=$?
 }
@@ -109,7 +115,7 @@ expect_no_call "deploy never passes the RPC URL in argv" "rpc.file.invalid"
 expect_output "deploy banner names the chain id and display name" "About to BROADCAST to chain 84532 (Base Sepolia)"
 expect_output "deploy asks for the chain id" "Type the chain id (84532) to continue"
 printf '11155111\n' > "$WORK/confirm_eth"
-with_chain_id 11155111 release "$WORK/confirm_eth" deploy 11155111
+with_chains "11155111" with_chain_id 11155111 release "$WORK/confirm_eth" deploy 11155111
 [ "$STATUS" -eq 0 ] && pass "deploy to a chain without a display name succeeds" || bad "deploy to a chain without a display name succeeds"
 expect_output "deploy banner shows only the id when there is no display name" "About to BROADCAST to chain 11155111$"
 
@@ -132,6 +138,15 @@ release "$WORK/eof" deploy 84532
 expect_failure "deploy on end of input"
 expect_output "deploy reports the missing confirmation" "no confirmation received"
 expect_no_call "deploy on end of input never broadcasts" "--broadcast"
+
+# deploy tells the deploy script which chain id to expect, so it refuses any other chain even if the RPC lies later
+expect_env_after_deploy() { release "$WORK/confirm_ok" deploy 84532; expect_env "$1" "$2"; }
+expect_env_after_deploy "deploy exports the configured chain id as EXPECTED_CHAIN_ID" "expected_chain=84532"
+# preflight only vouches for the chains in CHAINS, so deploy refuses a chain outside that list
+with_chains "11155111" release "$WORK/confirm_ok" deploy 84532
+expect_failure "deploy to a chain that is not in CHAINS"
+expect_output "deploy names the chain missing from CHAINS" "chain 84532 is not in CHAINS"
+expect_no_call "deploy to a chain that is not in CHAINS never calls forge" "script"
 
 # verify
 release "$WORK/eof" verify 84532
@@ -219,7 +234,7 @@ mask_urls() { # mask_urls <url for 84532> [<url for 11155111>]
       unset STUB_FORGE_ECHO_RPC STUB_FORGE_ECHO_FAIL
       if [ "$outcome" = failure ]; then expect_failure "$command masks on failure"; else
         [ "$STATUS" -eq 0 ] && pass "$command masks on success and exits zero" || bad "$command masks on success and exits zero"; fi
-      expect_output "$command shows the placeholder for '$1'" "<rpc url hidden>"
+      expect_output "$command shows the placeholder for '$1'" "<url hidden>"
       expect_output "$command keeps forge's other text for '$1'" "provider error for"
       for secret in "$1" "${2:-}"; do
         [ -n "$secret" ] || continue
@@ -235,6 +250,24 @@ mask_urls 'https://rpc.priv.invalid/v2/KEY.+*[x]&b=1?c=$d\e|f'
 mask_urls 'https://rpc.priv.invalid/v2/KEY1' 'https://rpc.priv2.invalid/KEY2/&' "84532 11155111"
 # when one URL is a prefix of another, the longer one is masked whole
 mask_urls 'https://rpc.priv.invalid/KEY' 'https://rpc.priv.invalid/KEY/more-secret' "84532 11155111"
+
+# every command that runs forge hides URLs in its output, in any spelling forge may print: lowercased host, default port dropped
+for command in preflight check fork-test deploy; do
+  for outcome in success failure; do
+    STUB_FORGE_ECHO_TEXT="error sending request for url (http://localhost/v2/KEY99) and https://other.invalid:443/KEY98"
+    [ "$outcome" = failure ] && STUB_FORGE_ECHO_FAIL=1
+    release "$WORK/confirm_ok" $command $( [ "$command" = deploy ] && echo 84532 )
+    unset STUB_FORGE_ECHO_TEXT STUB_FORGE_ECHO_FAIL
+    if [ "$outcome" = failure ]; then
+      [ "$STATUS" -eq 7 ] && pass "$command keeps forge's exit status when it fails" || bad "$command keeps forge's exit status when it fails (got $STATUS)"
+    else
+      [ "$STATUS" -eq 0 ] && pass "$command exits zero when forge succeeds" || bad "$command exits zero when forge succeeds"
+    fi
+    expect_output "$command ($outcome) shows the placeholder" "(<url hidden>) and <url hidden>"
+    expect_output "$command ($outcome) keeps forge's other text" "error sending request for url"
+    if grep -q "KEY99\|KEY98\|localhost\|other.invalid" "$OUT"; then bad "$command ($outcome) output leaks part of a URL"; else pass "$command ($outcome) output leaks no part of a URL"; fi
+  done
+done
 
 # a chain id listed twice is refused by every command that reads CHAINS
 for command in preflight check fork-test; do
@@ -336,6 +369,55 @@ export LOCAL_CHAINS_OK=1
   LOCAL_CHAINS_OK = 1
 LOCAL_CHAINS_OK: 1
 LINES
+
+# A FOUNDRY_* or DAPP_* setting in .env (read by forge in the release container, in any letter case) can change the
+# compiled bytecode, and with it the addresses, while the manifest still records the foundry.toml settings, so the guard
+# refuses every spelling. Nothing downstream re-checks these, so this grep is the only check.
+guard_env 'KEYSTORE_DIR=/keys
+# FOUNDRY_EVM_VERSION=cancun
+MY_FOUNDRY_X=1
+MY_dapp_x=1
+'
+[ "$STATUS" -eq 0 ] && pass "release guard ignores commented FOUNDRY_ lines and similarly named variables" || bad "release guard ignores commented FOUNDRY_ lines and similarly named variables"
+while IFS= read -r line; do
+  guard_env "KEYSTORE_DIR=/keys
+$line
+"
+  expect_failure "release guard on the .env line '$line'"
+  expect_output "release guard names FOUNDRY_ for '$line'" "FOUNDRY_\* and DAPP_\*"
+done <<'LINES'
+FOUNDRY_EVM_VERSION=cancun
+FOUNDRY_OPTIMIZER_RUNS=1
+FOUNDRY_BYTECODE_HASH=ipfs
+export FOUNDRY_EVM_VERSION=cancun
+  FOUNDRY_PROFILE=ci
+FOUNDRY_EVM_VERSION: cancun
+FOUNDRY_EVM_VERSION = cancun
+FOUNDRY_ETH_RPC_URL=
+foundry_optimizer_runs=7
+Foundry_Evm_Version=cancun
+export foundry_evm_version=cancun
+DAPP_SOLC_VERSION=0.8.20
+dapp_optimizer_runs=7
+export DAPP_BYTECODE_HASH=ipfs
+LINES
+
+# make test-fork takes the URL from FORK_RPC_URL, so it never appears in a command line (RUN_TOOLS=echo keeps docker out of it)
+fork_target() { # fork_target [<url>] -> STATUS/OUT
+  if [ -n "${1:-}" ]; then
+    FORK_RPC_URL="$1" make -s -C "$WORK/guard" -f "$ROOT/Makefile" RUN_TOOLS=echo test-fork > "$OUT" 2>&1
+  else
+    env -u FORK_RPC_URL make -s -C "$WORK/guard" -f "$ROOT/Makefile" RUN_TOOLS=echo test-fork > "$OUT" 2>&1
+  fi
+  STATUS=$?
+}
+fork_target "https://rpc.private.invalid/v2/FORK-SECRET"
+[ "$STATUS" -eq 0 ] && pass "make test-fork runs with FORK_RPC_URL set" || bad "make test-fork runs with FORK_RPC_URL set"
+if grep -q "FORK-SECRET\|rpc.private.invalid" "$OUT"; then bad "make test-fork must not put the URL in the command"; else pass "make test-fork does not put the URL in the command"; fi
+expect_output "make test-fork hides URLs in forge's output" "hide_urls.py"
+fork_target
+expect_failure "make test-fork without FORK_RPC_URL"
+expect_output "make test-fork explains the missing FORK_RPC_URL" "FORK_RPC_URL"
 
 # make release-deploy / release-verify: the CHAIN guard accepts chain ids only (RELEASE=echo keeps docker out of it)
 chain_target() { # chain_target <target> <chain> -> STATUS/OUT

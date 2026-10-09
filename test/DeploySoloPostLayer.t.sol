@@ -6,6 +6,7 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {DeterministicFactory} from "../script/DeterministicFactory.sol";
 import {DeploySoloPostLayer} from "../script/DeploySoloPostLayer.s.sol";
+import {DeploymentGuards} from "../script/DeploymentGuards.sol";
 import {SoloPostLayer} from "../src/SoloPostLayer.sol";
 
 contract DeploySoloPostLayerTest is Test {
@@ -130,5 +131,62 @@ contract DeploySoloPostLayerTest is Test {
     function test_RevertWhen_ownerIsZero() public {
         vm.expectRevert(DeploySoloPostLayer.ZeroOwner.selector);
         deployer.deploy(address(0), LABEL);
+    }
+
+    // broadcastDeploy is what `run` calls after reading the environment. It is tested with explicit arguments so no
+    // test races on the process environment, which forge shares between parallel tests.
+    function test_broadcastDeploy_deploysWhenOwnerIsAnEoaDeclaredAsSuch() public {
+        (, address proxy) = deployer.broadcastDeploy(owner, LABEL, block.chainid, true);
+
+        assertEq(SoloPostLayer(proxy).owner(), owner);
+    }
+
+    function test_broadcastDeploy_deploysWhenOwnerHasCode() public {
+        vm.etch(owner, hex"00");
+
+        (, address proxy) = deployer.broadcastDeploy(owner, LABEL, block.chainid, false);
+
+        assertEq(SoloPostLayer(proxy).owner(), owner);
+    }
+
+    // A contract-wallet owner (for example a Safe) missing on this chain could later be claimed by whoever deploys
+    // code at that address, so the broadcast itself must refuse, with or without a prior preflight.
+    function test_RevertWhen_broadcastDeployOwnerHasNoCodeAndIsNotDeclaredAnEoa() public {
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerHasNoCode.selector, block.chainid, owner));
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, false);
+    }
+
+    function test_RevertWhen_broadcastDeployChainIsNotTheExpectedOne() public {
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.WrongChainId.selector, 1, block.chainid));
+        deployer.broadcastDeploy(owner, LABEL, 1, true);
+    }
+
+    function test_RevertWhen_broadcastDeployFactoryCodeIsDifferent() public {
+        vm.etch(DeterministicFactory.ADDRESS, hex"00");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(DeploymentGuards.FactoryCodehashMismatch.selector, block.chainid, keccak256(hex"00"))
+        );
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, true);
+    }
+
+    function test_RevertWhen_broadcastDeployFactoryIsMissing() public {
+        vm.etch(DeterministicFactory.ADDRESS, "");
+
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.FactoryMissing.selector, block.chainid));
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, true);
+    }
+
+    // The one test that sets environment variables (forge shares the process environment between parallel tests, so
+    // no other test may write OWNER, SALT_LABEL, EXPECTED_CHAIN_ID or OWNER_IS_EOA). It pins the security default:
+    // an owner without code is refused unless OWNER_IS_EOA says true, so an empty or missing value must not mean EOA.
+    function test_RevertWhen_runOwnerIsEoaIsEmptyAndOwnerHasNoCode() public {
+        vm.setEnv("OWNER", vm.toString(owner));
+        vm.setEnv("SALT_LABEL", LABEL);
+        vm.setEnv("EXPECTED_CHAIN_ID", vm.toString(block.chainid));
+        vm.setEnv("OWNER_IS_EOA", "");
+
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerHasNoCode.selector, block.chainid, owner));
+        deployer.run();
     }
 }

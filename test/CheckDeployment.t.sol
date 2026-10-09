@@ -6,6 +6,7 @@ import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.s
 import {DeterministicFactory} from "../script/DeterministicFactory.sol";
 import {DeploySoloPostLayer} from "../script/DeploySoloPostLayer.s.sol";
 import {CheckDeployment} from "../script/CheckDeployment.s.sol";
+import {DeploymentGuards} from "../script/DeploymentGuards.sol";
 
 contract CheckDeploymentTest is Test {
     uint256 internal constant CHAIN_ID = 84532;
@@ -43,7 +44,7 @@ contract CheckDeploymentTest is Test {
     }
 
     function test_RevertWhen_chainIdDiffers() public {
-        vm.expectRevert(abi.encodeWithSelector(CheckDeployment.WrongChainId.selector, 1, CHAIN_ID));
+        vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.WrongChainId.selector, 1, CHAIN_ID));
         checker.checkChain(1, owner, proxy, implementation);
     }
 

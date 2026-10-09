@@ -4,7 +4,7 @@ Scope, trust model, invariants and static-analysis triage for `postlayer-core`, 
 
 ## Scope
 
-In scope: everything under `src/` (`SoloPostLayer` and the four modules, about 340 lines) and the deterministic deploy path in `script/` (`DeploySoloPostLayer.s.sol`, `DeterministicFactory.sol`). Out of scope: OpenZeppelin dependencies in `lib/`, tests, and the off-chain release tooling.
+In scope: everything under `src/` (`SoloPostLayer` and the four modules, about 340 lines) and the deterministic deploy path in `script/` (`DeploySoloPostLayer.s.sol`, `DeploymentGuards.sol`, `DeterministicFactory.sol`). Out of scope: OpenZeppelin dependencies in `lib/`, tests, and the off-chain release tooling.
 
 Build: solc 0.8.37, `evm_version = "shanghai"`, optimizer 200 runs, `bytecode_hash = "none"`. Review the tagged release (`testnet-0.1.0`), not a moving branch.
 
@@ -37,7 +37,8 @@ Build: solc 0.8.37, `evm_version = "shanghai"`, optimizer 200 runs, `bytecode_ha
 - **Forced ETH.** Ether can still arrive through `selfdestruct` or as a block reward. It is not tracked or claimable. The invariant tests compare tip flows, not the absolute balance.
 - **Upgrades.** The owner can change tipping behaviour for future tips. No stored balances exist to take.
 - **Payee does not follow ownership.** Tips go to the address that published the post. After `transferOwnership` (or a key rotation) the previous owner keeps receiving tips on existing posts, while the new owner edits them. Rule: deploy with the final owner from day one and do not transfer ownership. Accepted as a documented rule instead of a code change.
-- **Owner must exist on every chain.** `initialize(OWNER)` accepts any non-zero address. Preflight fails when `OWNER` has no code on a target chain unless `OWNER_IS_EOA=true` is set, so a contract-wallet owner that is not deployed on one chain cannot be baked into that chain's proxy.
+- **Owner must exist on every chain.** `initialize(OWNER)` accepts any non-zero address. The deploy script (and the preflight) refuse when `OWNER` has no code on the target chain unless `OWNER_IS_EOA=true` is set, so a contract-wallet owner that is not deployed on one chain cannot be baked into that chain's proxy by this tooling.
+- **Anyone can deploy the canonical proxy on a chain you never targeted.** Deployment is permissionless and the init code, including `OWNER`, is public once deployed anywhere. With an EOA owner this is harmless. With a contract-wallet owner whose address someone else could claim on that chain (a Safe whose factory or singleton differs there), the proxy at the canonical address would belong to that claimant. The same address therefore does not mean "operated by us" outside the chains you deployed to; front ends must trust only the chains in their own release record.
 - **Same address across chains** depends on the deterministic factory, the salt label, the owner and the exact bytecode.
 
 ## Static analysis triage

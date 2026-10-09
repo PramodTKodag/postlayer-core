@@ -39,6 +39,24 @@ GOOD = broadcast(
 )
 
 
+class RunMasksUrlsTest(unittest.TestCase):
+    """A failing command's error text never shows a URL, whatever spelling the tool prints (cast normalizes the host and port)."""
+
+    def failing(self, stderr_text):
+        code = f"import sys; sys.stderr.write({stderr_text!r}); sys.exit(1)"
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+            manifest.run([sys.executable, "-c", code])
+        return err.getvalue()
+
+    def test_a_url_printed_in_normalized_form_is_hidden(self):
+        # configured as http://LocalHost:80/v2/KEY99, printed by cast as http://localhost/v2/KEY99
+        shown = self.failing("error sending request for url (http://localhost/v2/KEY99)")
+        self.assertNotIn("KEY99", shown)
+        self.assertIn("<url hidden>", shown)
+        self.assertIn("exit status 1", shown)
+
+
 class InWorkdir(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
