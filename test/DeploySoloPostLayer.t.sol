@@ -136,7 +136,7 @@ contract DeploySoloPostLayerTest is Test {
     // broadcastDeploy is what `run` calls after reading the environment. It is tested with explicit arguments so no
     // test races on the process environment, which forge shares between parallel tests.
     function test_broadcastDeploy_deploysWhenOwnerIsAnEoaDeclaredAsSuch() public {
-        (, address proxy) = deployer.broadcastDeploy(owner, LABEL, block.chainid, true);
+        (, address proxy) = deployer.broadcastDeploy(owner, LABEL, block.chainid, true, bytes32(0));
 
         assertEq(SoloPostLayer(proxy).owner(), owner);
     }
@@ -144,7 +144,7 @@ contract DeploySoloPostLayerTest is Test {
     function test_broadcastDeploy_deploysWhenOwnerHasCode() public {
         vm.etch(owner, hex"00");
 
-        (, address proxy) = deployer.broadcastDeploy(owner, LABEL, block.chainid, false);
+        (, address proxy) = deployer.broadcastDeploy(owner, LABEL, block.chainid, false, keccak256(hex"00"));
 
         assertEq(SoloPostLayer(proxy).owner(), owner);
     }
@@ -153,12 +153,27 @@ contract DeploySoloPostLayerTest is Test {
     // code at that address, so the broadcast itself must refuse, with or without a prior preflight.
     function test_RevertWhen_broadcastDeployOwnerHasNoCodeAndIsNotDeclaredAnEoa() public {
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerHasNoCode.selector, block.chainid, owner));
-        deployer.broadcastDeploy(owner, LABEL, block.chainid, false);
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, false, keccak256(hex"00"));
+    }
+
+    function test_RevertWhen_broadcastDeployOwnerCodeIsNotThePinnedOne() public {
+        vm.etch(owner, hex"6000");
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                DeploymentGuards.OwnerCodehashMismatch.selector,
+                block.chainid,
+                owner,
+                keccak256(hex"00"),
+                keccak256(hex"6000")
+            )
+        );
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, false, keccak256(hex"00"));
     }
 
     function test_RevertWhen_broadcastDeployChainIsNotTheExpectedOne() public {
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.WrongChainId.selector, 1, block.chainid));
-        deployer.broadcastDeploy(owner, LABEL, 1, true);
+        deployer.broadcastDeploy(owner, LABEL, 1, true, bytes32(0));
     }
 
     function test_RevertWhen_broadcastDeployFactoryCodeIsDifferent() public {
@@ -167,24 +182,25 @@ contract DeploySoloPostLayerTest is Test {
         vm.expectRevert(
             abi.encodeWithSelector(DeploymentGuards.FactoryCodehashMismatch.selector, block.chainid, keccak256(hex"00"))
         );
-        deployer.broadcastDeploy(owner, LABEL, block.chainid, true);
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, true, bytes32(0));
     }
 
     function test_RevertWhen_broadcastDeployFactoryIsMissing() public {
         vm.etch(DeterministicFactory.ADDRESS, "");
 
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.FactoryMissing.selector, block.chainid));
-        deployer.broadcastDeploy(owner, LABEL, block.chainid, true);
+        deployer.broadcastDeploy(owner, LABEL, block.chainid, true, bytes32(0));
     }
 
     // The one test that sets environment variables (forge shares the process environment between parallel tests, so
-    // no other test may write OWNER, SALT_LABEL, EXPECTED_CHAIN_ID or OWNER_IS_EOA). It pins the security default:
+    // no other test may write OWNER, SALT_LABEL, EXPECTED_CHAIN_ID, OWNER_IS_EOA or OWNER_CODEHASH). It pins the security default:
     // an owner without code is refused unless OWNER_IS_EOA says true, so an empty or missing value must not mean EOA.
     function test_RevertWhen_runOwnerIsEoaIsEmptyAndOwnerHasNoCode() public {
         vm.setEnv("OWNER", vm.toString(owner));
         vm.setEnv("SALT_LABEL", LABEL);
         vm.setEnv("EXPECTED_CHAIN_ID", vm.toString(block.chainid));
         vm.setEnv("OWNER_IS_EOA", "");
+        vm.setEnv("OWNER_CODEHASH", "");
 
         vm.expectRevert(abi.encodeWithSelector(DeploymentGuards.OwnerHasNoCode.selector, block.chainid, owner));
         deployer.run();

@@ -47,9 +47,13 @@ expect_preflight_refusal() { # <expected error text>; runs with the caller's env
 # A contract-wallet owner that exists on chain A only: chain A passes, chain B is refused.
 WALLET_OWNER=0x1111111111111111111111111111111111111111
 cast rpc --rpc-url "$CHAIN_A" anvil_setCode "$WALLET_OWNER" 0x00 > /dev/null
-(OWNER_IS_EOA=; OWNER="$WALLET_OWNER"; export OWNER; expect_preflight_refusal "OwnerHasNoCode(31338")
-(OWNER_IS_EOA=; OWNER="$WALLET_OWNER"; export OWNER; out="$(script/release.sh preflight 2>&1 || true)"
- case "$out" in *"OwnerHasNoCode(31337"*) echo "error: chain A has the owner's code but was refused" >&2; exit 1 ;; esac)
+WALLET_CODEHASH="$(cast keccak 0x00)"
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; expect_preflight_refusal "OwnerHasNoCode(31338")
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; out="$(script/release.sh preflight 2>&1 || true)"
+ case "$out" in *"OwnerHasNoCode(31337"*|*"OwnerCodehashMismatch(31337"*) echo "error: chain A has the owner's pinned code but was refused" >&2; exit 1 ;; esac)
+# A different contract at the owner address (the address was claimed by someone else) or no pin at all must be refused, never accepted as "has code".
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$(cast keccak 0x6000)"; export OWNER OWNER_CODEHASH; expect_preflight_refusal "OwnerCodehashMismatch(31337")
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH=; export OWNER OWNER_CODEHASH; expect_preflight_refusal "OwnerCodehashMismatch(31337")
 
 # The deploy script enforces the same checks itself, so a broadcast cannot skip the preflight: it refuses before sending anything.
 expect_deploy_refusal() { # <rpc url> <expected chain id> <expected error text>; runs with the caller's environment
@@ -58,7 +62,8 @@ expect_deploy_refusal() { # <rpc url> <expected chain id> <expected error text>;
   fi
   case "$out" in *"$3"*) ;; *) echo "error: deploy failed without '$3':" >&2; echo "$out" >&2; exit 1 ;; esac
 }
-(OWNER_IS_EOA=; OWNER="$WALLET_OWNER"; export OWNER; expect_deploy_refusal "$CHAIN_B" 31338 "OwnerHasNoCode(31338")
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$WALLET_CODEHASH"; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_B" 31338 "OwnerHasNoCode(31338")
+(OWNER_IS_EOA=; OWNER="$WALLET_OWNER" OWNER_CODEHASH="$(cast keccak 0x6000)"; export OWNER OWNER_CODEHASH; expect_deploy_refusal "$CHAIN_A" 31337 "OwnerCodehashMismatch(31337")
 (expect_deploy_refusal "$CHAIN_B" 31337 "WrongChainId(31337")
 # No expected chain id means no deploy: the variable is required, an empty one does not parse.
 (expect_deploy_refusal "$CHAIN_B" "" "EXPECTED_CHAIN_ID")

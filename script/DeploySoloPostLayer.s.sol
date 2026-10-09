@@ -11,8 +11,8 @@ import {DeploymentGuards} from "./DeploymentGuards.sol";
 /// Addresses depend only on the factory, `saltLabel`, `owner` and the compiled bytecode, so the same
 /// inputs give the same proxy address on every chain. Re-running skips contracts that already exist.
 /// Before broadcasting, `run` refuses unless the chain id is EXPECTED_CHAIN_ID, the factory has the pinned code, and
-/// OWNER has code on this chain (unless OWNER_IS_EOA=true), so no deploy path skips the preflight's safety checks.
-/// Usage: OWNER=<address> [OWNER_IS_EOA=true] SALT_LABEL=<label> EXPECTED_CHAIN_ID=<chain id>
+/// OWNER has code matching OWNER_CODEHASH on this chain (unless OWNER_IS_EOA=true), so no deploy path skips the preflight's safety checks.
+/// Usage: OWNER=<address> (OWNER_IS_EOA=true | OWNER_CODEHASH=<bytes32>) SALT_LABEL=<label> EXPECTED_CHAIN_ID=<chain id>
 ///   forge script script/DeploySoloPostLayer.s.sol --rpc-url <url> --broadcast
 contract DeploySoloPostLayer is Script, DeploymentGuards {
     error FactoryNotDeployed();
@@ -24,24 +24,29 @@ contract DeploySoloPostLayer is Script, DeploymentGuards {
     string private constant IMPLEMENTATION_SALT_PART = "implementation";
     string private constant PROXY_SALT_PART = "proxy";
 
-    /// @notice Reads OWNER, OWNER_IS_EOA, SALT_LABEL and EXPECTED_CHAIN_ID from the environment, then runs
-    /// `broadcastDeploy`. OWNER_IS_EOA left unset or empty means false: an owner without code is refused.
+    /// @notice Reads OWNER, OWNER_IS_EOA, OWNER_CODEHASH, SALT_LABEL and EXPECTED_CHAIN_ID from the environment, then
+    /// runs `broadcastDeploy`. OWNER_IS_EOA left unset or empty means false: an owner without code, or with code other
+    /// than OWNER_CODEHASH, is refused.
     function run() external returns (address implementation, address proxy) {
         return broadcastDeploy(
             vm.envAddress("OWNER"),
             vm.envString("SALT_LABEL"),
             vm.envUint("EXPECTED_CHAIN_ID"),
-            vm.envOr("OWNER_IS_EOA", false)
+            vm.envOr("OWNER_IS_EOA", false),
+            vm.envOr("OWNER_CODEHASH", bytes32(0))
         );
     }
 
     /// @notice Checks the chain (see `DeploymentGuards`), logs the predicted addresses and deploys both contracts in a
     /// broadcast. Reverts before broadcasting anything when a check fails.
-    function broadcastDeploy(address owner, string memory saltLabel, uint256 expectedChainId, bool ownerIsEoa)
-        public
-        returns (address implementation, address proxy)
-    {
-        _requireDeployable(expectedChainId, owner, ownerIsEoa);
+    function broadcastDeploy(
+        address owner,
+        string memory saltLabel,
+        uint256 expectedChainId,
+        bool ownerIsEoa,
+        bytes32 ownerCodehash
+    ) public returns (address implementation, address proxy) {
+        _requireDeployable(expectedChainId, owner, ownerIsEoa, ownerCodehash);
 
         (address predictedImplementation, address predictedProxy) = predict(owner, saltLabel);
         console.log("Predicted implementation:", predictedImplementation);
