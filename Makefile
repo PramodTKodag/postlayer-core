@@ -11,7 +11,7 @@ RUN_TOOLS := $(COMPOSE) run --rm tools
 
 .PHONY: help up down doctor versions \
         image build rebuild sizes \
-        test upgrade-reference test-upgrades test-release-tools test-release-isolation test-match test-fork snapshot gas-report coverage \
+        test upgrade-reference test-upgrades test-release-tools test-release-isolation test-docs test-match test-fork snapshot gas-report coverage \
         fmt fmt-check slither aderyn analyze ci \
         install update-deps \
         chains-up chains-down chains-status chains-logs deploy-check \
@@ -80,6 +80,9 @@ test-release-tools: ## Offline tests for the release helpers (manifest writer an
 test-release-isolation: ## Check the release container keeps its build output, cache, bytecode and compiler volume apart from the other tooling
 	$(COMPOSE) --profile tools config --format json | $(COMPOSE) run --rm -T tools "python3 test/release_tools/check_release_isolation.py"
 
+test-docs: ## Check docs/USAGE.md and the README still match the compiled contract's functions, events, errors and command signatures
+	$(RUN_TOOLS) "forge inspect SoloPostLayer abi --json | python3 script/check_usage_docs.py"
+
 test-match: ## Run tests matching a name: make test-match MATCH=testFuzz_tip
 	@test -n "$(MATCH)" || { echo "Usage: make test-match MATCH=<test name pattern>"; exit 1; }
 	$(RUN_TOOLS) "forge test -vvv --match-test '$(MATCH)'"
@@ -113,7 +116,7 @@ aderyn: ## Static analysis with Aderyn (writes report.md)
 
 analyze: slither aderyn ## Run both static analyzers
 
-ci: fmt-check sizes test test-upgrades test-release-tools test-release-isolation analyze ## Everything CI runs
+ci: fmt-check sizes test test-upgrades test-release-tools test-release-isolation test-docs analyze ## Everything CI runs
 
 ##@ Dependencies
 

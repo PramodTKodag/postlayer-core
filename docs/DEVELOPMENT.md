@@ -56,6 +56,7 @@ Run `make help` for the full list.
 | Static analysis | `make slither`, `make aderyn`, or `make analyze` |
 | Release helper tests (offline) | `make test-release-tools` |
 | Release container isolation check | `make test-release-isolation` |
+| Docs match the contract (functions, events, errors, command signatures) | `make test-docs` |
 | Everything CI runs | `make ci` |
 | Add a dependency | `make install DEP=OpenZeppelin/openzeppelin-contracts-upgradeable@v5.7.0` |
 | Shell in the container | `make shell` |
