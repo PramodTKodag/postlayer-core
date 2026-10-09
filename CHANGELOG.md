@@ -12,6 +12,7 @@ All notable changes are recorded here. Format based on [Keep a Changelog](https:
 - `make require-release-env` refuses `FOUNDRY_*` and `DAPP_*` settings in `.env` (any letter case): they change the compiled bytecode (and so the addresses) while the manifest records the `foundry.toml` settings.
 
 - A contract-wallet `OWNER` must now also match `OWNER_CODEHASH` on every target chain, checked by `release-preflight` and by the deploy script itself. Before, any code at `OWNER` passed, so a different contract that claimed the address on another chain first was accepted. `checkChain` and `broadcastDeploy` take the extra `ownerCodehash` argument. The pin does not prove who controls the wallet; see `docs/AUDIT.md`.
+- `.github/FUNDING.yml` enables the repository Sponsor button for the maintainer's GitHub Sponsors profile. Changes to it need the maintainer's review (`CODEOWNERS`), because it decides where donations go.
 
 ### Changed
 - `make test-upgrades` now validates `SoloPostLayer` against a build of the released tag (`testnet-0.1.0`), so storage-layout regressions against the released version fail. New `make upgrade-reference` builds that baseline; CI fetches tags for it.
