@@ -5,6 +5,7 @@ All notable changes are recorded here. Format based on [Keep a Changelog](https:
 ## [Unreleased]
 
 ### Added
+- CodeQL workflow: scans the GitHub Actions workflows and the Python release and docs tooling on every PR, on pushes to `main` and weekly, and uploads results to code scanning. Solidity stays covered by Slither and Aderyn.
 - README badge for the OpenSSF Best Practices passing level (project 15354).
 - `make lint` (part of `make ci`) runs Foundry's linter over `src/`, `script/` and `test/` (including `test/upgrades/`) and fails on any warning, or on an unused suppression in `src/` (the only place the linter reports them). The two kinds of warning in `src/` are suppressed inline with their reason and triaged in `docs/AUDIT.md`: `reentrancy-events` is a false positive (the linter counts the ERC-7201 storage getters' inline assembly as an external call), and the `uint48(block.timestamp)` casts cannot truncate. Comments only: the compiled bytecode is unchanged.
 - `docs/USAGE.md`: every function with who can call it, `cast` examples for publishing, reading, liking, tipping and owner administration, the events, the errors, and a note on calling from another contract. The examples were run against a local chain. README links it and shows a short example.
