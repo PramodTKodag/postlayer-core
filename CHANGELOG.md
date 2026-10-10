@@ -5,6 +5,7 @@ All notable changes are recorded here. Format based on [Keep a Changelog](https:
 ## [Unreleased]
 
 ### Added
+- README badge for the OpenSSF Best Practices passing level (project 15354).
 - `make lint` (part of `make ci`) runs Foundry's linter over `src/`, `script/` and `test/` (including `test/upgrades/`) and fails on any warning, or on an unused suppression in `src/` (the only place the linter reports them). The two kinds of warning in `src/` are suppressed inline with their reason and triaged in `docs/AUDIT.md`: `reentrancy-events` is a false positive (the linter counts the ERC-7201 storage getters' inline assembly as an external call), and the `uint48(block.timestamp)` casts cannot truncate. Comments only: the compiled bytecode is unchanged.
 - `docs/USAGE.md`: every function with who can call it, `cast` examples for publishing, reading, liking, tipping and owner administration, the events, the errors, and a note on calling from another contract. The examples were run against a local chain. README links it and shows a short example.
 - `make test-docs` (part of `make ci`) compares the compiled contract's ABI with `docs/USAGE.md` and the README, so a function, event or error that is added, renamed or re-typed without updating the guide fails CI. It also checks every `"name(types)"` or `"name(types)(returns)"` signature the commands pass to `cast` (input types, return types with struct fields, `indexed` fields), and the events and errors tables list each field's and argument's type.
