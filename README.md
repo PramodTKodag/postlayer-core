@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/PramodTKodag/postlayer/actions/workflows/ci.yml/badge.svg)](https://github.com/PramodTKodag/postlayer/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/PramodTKodag/postlayer/badge)](https://scorecard.dev/viewer/?uri=github.com/PramodTKodag/postlayer)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15354/badge)](https://www.bestpractices.dev/projects/15354)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 On-chain publishing layer: authors publish posts, readers like them and tip the author in native coin or approved tokens. Upgradeable (UUPS), chain-agnostic, content-type neutral.
