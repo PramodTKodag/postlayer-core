@@ -1,6 +1,8 @@
 # Slither 0.11.6 and every dependency, pinned by version and hash; the Dockerfile installs with --require-hashes.
-# Regenerate after a version bump: pip-compile --generate-hashes --strip-extras --no-header --no-annotate --allow-unsafe
-# on Python 3.10 (the image's python3), from the output of pip freeze in a venv with only slither-analyzer installed.
+# Regenerate after a version bump, on Python 3.10 (the python3 of the image's Ubuntu 22.04 base): install only slither-analyzer in a
+# venv, save its `pip freeze` output as slither.in, then run
+#   pip-compile --generate-hashes --strip-extras --no-header --no-annotate --allow-unsafe -o slither-requirements.txt slither.in
+# and put this header back.
 aiohappyeyeballs==2.7.1 \
     --hash=sha256:065665c041c42a5938ed220bdcd7230f22527fbec085e1853d2402c8a3615d9d \
     --hash=sha256:9243213661e29250eb41368e5daa826fc017156c3b8a11440826b2e3ed376472

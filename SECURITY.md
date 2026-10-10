@@ -14,10 +14,10 @@ Include what you found, how to reproduce it (a failing test is ideal), the impac
 
 ## What to expect
 
-- Acknowledgement within 3 business days.
-- An assessment (confirmed or not, and its severity) within 7 days.
+- Acknowledgement within 3 business days of the report.
+- An assessment (confirmed or not, and its severity) within 7 calendar days of the report.
 - A fix developed privately, then a coordinated disclosure and credit if you want it.
-- Public disclosure within 90 days of the report, or when the fix ships, whichever comes first.
+- Public disclosure when the fix ships, or 90 days after the report if no fix has shipped, whichever comes first. For a complex issue we can agree a different date with you.
 
 A bug bounty will be published here before the first mainnet deployment.
 

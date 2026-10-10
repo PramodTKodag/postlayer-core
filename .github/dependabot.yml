@@ -7,6 +7,14 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+  # Slither and its dependencies, pinned by hash in docker/slither-requirements.txt.
+  - package-ecosystem: pip
+    directory: /docker
+    schedule:
+      interval: weekly
+    groups:
+      pip:
+        patterns: ["*"]
   - package-ecosystem: npm
     directory: /
     schedule:

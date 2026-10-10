@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 #
 # Tooling image: Foundry (forge, cast, anvil) plus Node.js, Slither and Aderyn.
-# Every tool version is pinned here; Slither and its dependencies are pinned by hash in slither-requirements.txt.
+# Every tool version is pinned in docker/: here, and for Slither and its dependencies (pinned by hash) in slither-requirements.txt.
 
 ARG FOUNDRY_IMAGE=ghcr.io/foundry-rs/foundry:v1.8.5@sha256:32c8ea9ef052a440cb1620175987a3f49eff8b068a0c6a3d09ebf7f5f9a0e043
 FROM ${FOUNDRY_IMAGE}
@@ -36,7 +36,8 @@ RUN set -eux; \
 # Slither: the version and every dependency are pinned by hash in slither-requirements.txt.
 COPY slither-requirements.txt /tmp/slither-requirements.txt
 RUN python3 -m venv /opt/slither \
- && /opt/slither/bin/pip install --no-cache-dir --require-hashes --no-deps -r /tmp/slither-requirements.txt \
+ && /opt/slither/bin/pip install --no-cache-dir --require-hashes --only-binary=:all: --no-deps -r /tmp/slither-requirements.txt \
+ && /opt/slither/bin/pip check \
  && rm /tmp/slither-requirements.txt
 
 # Aderyn: the release binary, checked against its pinned hash.
