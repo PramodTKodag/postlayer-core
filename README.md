@@ -1,4 +1,4 @@
-![postlayer: your blog, on-chain; your readers, tipping you](docs/assets/banner.jpg)
+![postlayer: on-chain publishing for your own blog. Publish, like, tip.](docs/assets/banner.jpg)
 
 # postlayer
 
