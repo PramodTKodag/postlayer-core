@@ -8,16 +8,18 @@ The contracts are implemented and a testnet release (`testnet-0.1.0`) exists, bu
 
 Please report privately. Do not open a public issue or pull request.
 
-Use GitHub's private vulnerability reporting: open the **Security** tab of this repository and choose **Report a vulnerability**.
+Use GitHub's private vulnerability reporting: https://github.com/PramodTKodag/postlayer/security/advisories/new (or open the **Security** tab of this repository and choose **Report a vulnerability**).
 
 Include what you found, how to reproduce it (a failing test is ideal), the impact, and any suggested fix.
 
 ## What to expect
 
-- Acknowledgement of your report.
+- Acknowledgement within 3 business days.
+- An assessment (confirmed or not, and its severity) within 7 days.
 - A fix developed privately, then a coordinated disclosure and credit if you want it.
+- Public disclosure within 90 days of the report, or when the fix ships, whichever comes first.
 
-Response times and a bug bounty will be published here before the first mainnet deployment.
+A bug bounty will be published here before the first mainnet deployment.
 
 ## Scope
 

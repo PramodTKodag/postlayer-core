@@ -21,18 +21,18 @@ make versions   # prints the tool versions inside the image
 
 ## The tooling image
 
-`docker/Dockerfile` is the single source of truth for versions:
+`docker/Dockerfile` is the single source of truth for versions (Slither's dependencies are pinned by hash in `docker/slither-requirements.txt`):
 
 | Tool | Version | Notes |
 |---|---|---|
 | Foundry (forge, cast, anvil) | 1.8.5 | Official image, pinned by tag and digest |
 | Node.js | 24.21.0 | Tarball verified by SHA-256 |
-| Slither | 0.11.6 | Installed in a Python virtualenv |
-| Aderyn | 0.6.8 | Installed with npm |
+| Slither | 0.11.6 | Installed in a Python virtualenv from `docker/slither-requirements.txt`, every package pinned by hash |
+| Aderyn | 0.6.8 | Release binary verified by SHA-256 |
 | OpenZeppelin upgrades-core | 1.46.0 | Pinned in `package.json`, installed by `make test-upgrades` |
 | Solidity | 0.8.37 | Set in `foundry.toml` |
 
-Update a version by editing the Dockerfile (or `foundry.toml` for solc), rebuilding with `make image`, and running `make ci`. CI builds the same image.
+Update a version by editing the Dockerfile (`docker/slither-requirements.txt` for Slither, regenerated as its header says; `foundry.toml` for solc), rebuilding with `make image`, and running `make ci`. CI builds the same image.
 
 The container runs as your user, so files in `out/` and `cache/` belong to you. Compiler downloads are cached in named Docker volumes (one for `tools`, one for `release`); `make clean` removes them.
 
