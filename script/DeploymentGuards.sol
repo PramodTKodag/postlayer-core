@@ -47,18 +47,18 @@ abstract contract DeploymentGuards is CommonBase {
     {
         _requireChainId(expectedChainId);
         address factory = DeterministicFactory.ADDRESS;
-        if (factory.code.length == 0) revert FactoryMissing(vm.getChainId());
-        if (factory.codehash != FACTORY_CODEHASH) revert FactoryCodehashMismatch(vm.getChainId(), factory.codehash);
+        if (factory.code.length == 0) revert FactoryMissing(expectedChainId);
+        if (factory.codehash != FACTORY_CODEHASH) revert FactoryCodehashMismatch(expectedChainId, factory.codehash);
         if (ownerIsEoa) {
-            if (ownerCodehash != bytes32(0)) revert OwnerIsEoaWithCodehash(vm.getChainId(), owner, ownerCodehash);
-            if (_hasContractCode(owner)) revert OwnerIsEoaHasCode(vm.getChainId(), owner);
+            if (ownerCodehash != bytes32(0)) revert OwnerIsEoaWithCodehash(expectedChainId, owner, ownerCodehash);
+            if (_hasContractCode(owner)) revert OwnerIsEoaHasCode(expectedChainId, owner);
             return;
         }
-        if (owner.code.length == 0) revert OwnerHasNoCode(vm.getChainId(), owner);
-        if (ownerCodehash == bytes32(0)) revert OwnerCodehashNotPinned(vm.getChainId(), owner);
+        if (owner.code.length == 0) revert OwnerHasNoCode(expectedChainId, owner);
+        if (ownerCodehash == bytes32(0)) revert OwnerCodehashNotPinned(expectedChainId, owner);
         bytes32 actualCodehash = owner.codehash;
         if (actualCodehash != ownerCodehash) {
-            revert OwnerCodehashMismatch(vm.getChainId(), owner, ownerCodehash, actualCodehash);
+            revert OwnerCodehashMismatch(expectedChainId, owner, ownerCodehash, actualCodehash);
         }
     }
 

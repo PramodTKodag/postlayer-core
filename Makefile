@@ -108,8 +108,9 @@ fmt: ## Format Solidity sources
 fmt-check: ## Fail if sources are not formatted
 	$(RUN_TOOLS) "forge fmt --check"
 
-lint: ## Run Foundry's linter on src, script and test; fails on any warning
-	$(RUN_TOOLS) "forge lint --deny warnings --report-unused-suppressions"
+# The upgrades profile skips nothing, so test/upgrades is linted too.
+lint: ## Run Foundry's linter on src, script and test (including test/upgrades); fails on any warning
+	$(RUN_TOOLS) "FOUNDRY_PROFILE=upgrades forge lint --deny warnings --report-unused-suppressions"
 
 slither: ## Static analysis with Slither (fails on medium or higher)
 	$(RUN_TOOLS) "slither . --fail-medium"

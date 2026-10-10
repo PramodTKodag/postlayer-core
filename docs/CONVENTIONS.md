@@ -34,7 +34,8 @@ Every name should explain itself. These rules follow the [Solidity style guide](
 - No magic numbers; name constants.
 - Small files, one purpose each.
 - Layout inside a contract: types, state, events, errors, modifiers, constructor, external, public, internal, private.
-- Format with `make fmt`; CI runs `make fmt-check`.
+- Format with `make fmt`; CI runs `make fmt-check` and `make lint`.
+- Suppress a lint warning only when it is a false positive or provably safe: give the reason on the line above and add it to the triage table in `docs/AUDIT.md`.
 
 ## Tests
 

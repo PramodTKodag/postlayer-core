@@ -131,7 +131,7 @@ Inside the Compose network the chains are reachable as `http://anvil-a:8545` and
 
 - `make slither` fails on findings of medium severity or higher. Paths outside `src/` are filtered in `slither.config.json`.
 - `make aderyn` writes `report.md` (not committed). It does not fail the build; review it on every change.
-- `make lint` runs Foundry's linter over `src/`, `script/` and `test/` and fails on any warning, and on any `forge-lint: disable-…` comment that no longer suppresses a warning. Suppress a warning only when it is a false positive or provably safe, with the reason on the line above, and add it to the triage table in `docs/AUDIT.md`.
+- `make lint` runs Foundry's linter over `src/`, `script/` and `test/` (including `test/upgrades/`) and fails on any warning, and on any `forge-lint: disable-…` comment in `src/` that no longer suppresses a warning (the linter reports unused suppressions only in `src/`). Suppress a warning only when it is a false positive or provably safe, with the reason on the line above, and add it to the triage table in `docs/AUDIT.md`.
 
 ## Compiler settings
 

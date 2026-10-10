@@ -44,7 +44,7 @@ abstract contract PostRegistryModule is IPostRegistry {
             contentUri: contentUri
         });
 
-        // No external call comes before this event; forge-lint counts the ERC-7201 storage getter's inline assembly as one.
+        // False positive: forge-lint reads the storage getter's assembly as an external call; see docs/AUDIT.md.
         // forge-lint: disable-next-line(reentrancy-events)
         emit PostPublished(postId, msg.sender, contentType, contentUri, contentHash);
     }
@@ -64,7 +64,7 @@ abstract contract PostRegistryModule is IPostRegistry {
         post.contentUri = contentUri;
         post.contentHash = contentHash;
 
-        // No external call comes before this event; forge-lint counts the ERC-7201 storage getter's inline assembly as one.
+        // False positive: forge-lint reads the storage getter's assembly as an external call; see docs/AUDIT.md.
         // forge-lint: disable-next-line(reentrancy-events)
         emit PostUpdated(postId, newVersion, previousContentHash, contentUri, contentHash);
     }
@@ -74,7 +74,7 @@ abstract contract PostRegistryModule is IPostRegistry {
         Post storage post = _getExistingPost(postId);
         if (post.hidden) return;
         post.hidden = true;
-        // No external call comes before this event; forge-lint counts the ERC-7201 storage getter's inline assembly as one.
+        // False positive: forge-lint reads the storage getter's assembly as an external call; see docs/AUDIT.md.
         // forge-lint: disable-next-line(reentrancy-events)
         emit PostHidden(postId);
     }
@@ -84,7 +84,7 @@ abstract contract PostRegistryModule is IPostRegistry {
         Post storage post = _getExistingPost(postId);
         if (!post.hidden) return;
         post.hidden = false;
-        // No external call comes before this event; forge-lint counts the ERC-7201 storage getter's inline assembly as one.
+        // False positive: forge-lint reads the storage getter's assembly as an external call; see docs/AUDIT.md.
         // forge-lint: disable-next-line(reentrancy-events)
         emit PostUnhidden(postId);
     }

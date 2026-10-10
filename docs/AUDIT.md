@@ -44,7 +44,7 @@ Build: solc 0.8.37, `evm_version = "shanghai"`, optimizer 200 runs, `bytecode_ha
 
 ## Static analysis triage
 
-Run with `make analyze` (Slither fails on medium or higher; Aderyn writes `report.md`) and `make lint` (Foundry's linter; fails on any warning and on any suppression that no longer matches a warning).
+Run with `make analyze` (Slither fails on medium or higher; Aderyn writes `report.md`) and `make lint` (Foundry's linter; fails on any warning, and on any suppression in `src/` that no longer matches a warning).
 
 | Tool | Finding | Verdict |
 |---|---|---|
@@ -54,7 +54,7 @@ Run with `make analyze` (Slither fails on medium or higher; Aderyn writes `repor
 | Aderyn L-2 | Empty block in `_authorizeUpgrade` | Expected: the access check is the `onlyOwner` modifier |
 | Aderyn L-3 | `nonReentrant` modifier used once | Accepted: kept as a named modifier for clarity |
 | Aderyn L-4 | Unchecked return of `_getExistingPost` in `ReactionModule` | Intended: the call is made for its revert on a missing post |
-| forge lint `reentrancy-events` | Every `emit` in the post registry, reactions, token allowlist and tipping modules | False positive: Foundry 1.8.5 counts the inline assembly in the ERC-7201 storage getters as an external call. None of these events follows an external call; in `tipPost` the event is emitted before the payout. Suppressed inline with the reason |
+| forge lint `reentrancy-events` | Every `emit` in the post registry, reactions, token allowlist and tipping modules | False positive: Foundry 1.8.5 counts the inline assembly in the ERC-7201 storage getters as an external call. None of these events follows an external call; in `tipPost` the event is emitted before the payout. Suppressed inline with the reason. Each suppression asserts that no external call comes before that `emit`: re-check it whenever the function changes, and keep the `PostTipped` emit before the payout in `tipPost` |
 | forge lint `unsafe-typecast` | `uint48(block.timestamp)` in `publishPost` and `updatePost` | Safe: `uint48` holds Unix timestamps until about the year 8,900,000. Suppressed inline with the reason |
 
 ## Before an external audit
