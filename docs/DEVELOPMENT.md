@@ -139,7 +139,7 @@ Inside the Compose network the chains are reachable as `http://anvil-a:8545` and
 
 ## CI
 
-`.github/workflows/ci.yml` builds the same tooling image and runs `make ci` with the larger fuzz and invariant counts. `.github/workflows/scorecard.yml` runs the OpenSSF Scorecard weekly and on pushes to `main`. `.github/dependabot.yml` opens weekly update PRs for Actions, npm and the Solidity submodules. Third-party Actions are pinned by commit SHA.
+`.github/workflows/ci.yml` builds the same tooling image and runs `make ci` with the larger fuzz and invariant counts. `.github/workflows/scorecard.yml` runs the OpenSSF Scorecard weekly and on pushes to `main`. `.github/workflows/codeql.yml` runs CodeQL on the workflows and the Python tooling on every PR, on pushes to `main` and weekly; CodeQL does not support Solidity, which Slither and Aderyn cover. `.github/dependabot.yml` opens weekly update PRs for Actions, npm and the Solidity submodules. Third-party Actions are pinned by commit SHA.
 
 ## Troubleshooting
 
