@@ -12,7 +12,7 @@ RUN_TOOLS := $(COMPOSE) run --rm tools
 .PHONY: help up down doctor versions \
         image build rebuild sizes \
         test upgrade-reference test-upgrades test-release-tools test-release-isolation test-docs test-match test-fork snapshot gas-report coverage \
-        fmt fmt-check slither aderyn analyze ci \
+        fmt fmt-check lint slither aderyn analyze ci \
         install update-deps \
         chains-up chains-down chains-status chains-logs deploy-check \
         release-preflight release-deploy release-verify release-check release-manifest test-fork-release require-release-env \
@@ -108,6 +108,9 @@ fmt: ## Format Solidity sources
 fmt-check: ## Fail if sources are not formatted
 	$(RUN_TOOLS) "forge fmt --check"
 
+lint: ## Run Foundry's linter on src, script and test; fails on any warning
+	$(RUN_TOOLS) "forge lint --deny warnings --report-unused-suppressions"
+
 slither: ## Static analysis with Slither (fails on medium or higher)
 	$(RUN_TOOLS) "slither . --fail-medium"
 
@@ -116,7 +119,7 @@ aderyn: ## Static analysis with Aderyn (writes report.md)
 
 analyze: slither aderyn ## Run both static analyzers
 
-ci: fmt-check sizes test test-upgrades test-release-tools test-release-isolation test-docs analyze ## Everything CI runs
+ci: fmt-check lint sizes test test-upgrades test-release-tools test-release-isolation test-docs analyze ## Everything CI runs
 
 ##@ Dependencies
 

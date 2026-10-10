@@ -32,19 +32,19 @@ contract CheckDeployment is Script, DeploymentGuards {
         for (uint256 i = 0; i < rpcUrlEnvVars.length; ++i) {
             vm.createSelectFork(vm.envString(rpcUrlEnvVars[i]));
             checkChain(chainIds[i], owner, proxy, implementation);
-            console.log("OK", block.chainid, proxy);
+            console.log("OK", vm.getChainId(), proxy);
         }
     }
 
     /// @notice Reverts unless the currently selected chain is `expectedChainId` and holds the expected proxy.
     function checkChain(uint256 expectedChainId, address owner, address proxy, address implementation) public view {
         _requireChainId(expectedChainId);
-        if (proxy.code.length == 0) revert NoCodeAtProxy(block.chainid, proxy);
+        if (proxy.code.length == 0) revert NoCodeAtProxy(vm.getChainId(), proxy);
         address actualImplementation = address(uint160(uint256(vm.load(proxy, ERC1967Utils.IMPLEMENTATION_SLOT))));
         if (actualImplementation != implementation) {
-            revert WrongImplementation(block.chainid, implementation, actualImplementation);
+            revert WrongImplementation(vm.getChainId(), implementation, actualImplementation);
         }
         address actualOwner = SoloPostLayer(proxy).owner();
-        if (actualOwner != owner) revert WrongOwner(block.chainid, owner, actualOwner);
+        if (actualOwner != owner) revert WrongOwner(vm.getChainId(), owner, actualOwner);
     }
 }

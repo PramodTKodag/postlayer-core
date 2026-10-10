@@ -47,6 +47,8 @@ abstract contract TippingModule is ITipping, PostRegistryModule, TokenAllowlistM
         uint256 expectedValue = token == address(0) ? amount : 0;
         if (msg.value != expectedValue) revert TipValueMismatch(expectedValue, msg.value);
 
+        // Emitted before the payout call; forge-lint counts the ERC-7201 storage getter's inline assembly as an external call.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit PostTipped(postId, msg.sender, token, author, amount);
 
         if (token == address(0)) {

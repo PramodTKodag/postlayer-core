@@ -32,7 +32,7 @@ contract DeployOnForkTest is Test {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             string memory prefix = string.concat("CHAIN_", chainIds[i]);
             vm.createSelectFork(vm.envString(string.concat(prefix, "_RPC_URL")));
-            assertEq(block.chainid, vm.envUint(string.concat(prefix, "_ID")), "RPC reports the configured chain id");
+            assertEq(vm.getChainId(), vm.envUint(string.concat(prefix, "_ID")), "RPC reports the configured chain id");
 
             assertEq(DeterministicFactory.ADDRESS.codehash, factoryCodehash, chainIds[i]);
 

@@ -29,6 +29,8 @@ abstract contract ReactionModule is IReactions, PostRegistryModule {
         $.liked[postId][msg.sender] = true;
         ++$.likeCounts[postId];
 
+        // No external call comes before this event; forge-lint counts the ERC-7201 storage getter's inline assembly as one.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit PostLiked(postId, msg.sender);
     }
 
@@ -41,6 +43,8 @@ abstract contract ReactionModule is IReactions, PostRegistryModule {
         $.liked[postId][msg.sender] = false;
         --$.likeCounts[postId];
 
+        // No external call comes before this event; forge-lint counts the ERC-7201 storage getter's inline assembly as one.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit PostUnliked(postId, msg.sender);
     }
 

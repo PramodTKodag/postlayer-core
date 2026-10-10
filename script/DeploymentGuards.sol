@@ -29,7 +29,8 @@ abstract contract DeploymentGuards is CommonBase {
 
     /// @dev Reverts unless the selected chain is `expectedChainId`.
     function _requireChainId(uint256 expectedChainId) internal view {
-        if (block.chainid != expectedChainId) revert WrongChainId(expectedChainId, block.chainid);
+        uint256 chainId = vm.getChainId();
+        if (chainId != expectedChainId) revert WrongChainId(expectedChainId, chainId);
     }
 
     /// @dev Reverts unless the selected chain is `expectedChainId`, has the pinned deterministic factory, and the
@@ -46,18 +47,18 @@ abstract contract DeploymentGuards is CommonBase {
     {
         _requireChainId(expectedChainId);
         address factory = DeterministicFactory.ADDRESS;
-        if (factory.code.length == 0) revert FactoryMissing(block.chainid);
-        if (factory.codehash != FACTORY_CODEHASH) revert FactoryCodehashMismatch(block.chainid, factory.codehash);
+        if (factory.code.length == 0) revert FactoryMissing(vm.getChainId());
+        if (factory.codehash != FACTORY_CODEHASH) revert FactoryCodehashMismatch(vm.getChainId(), factory.codehash);
         if (ownerIsEoa) {
-            if (ownerCodehash != bytes32(0)) revert OwnerIsEoaWithCodehash(block.chainid, owner, ownerCodehash);
-            if (_hasContractCode(owner)) revert OwnerIsEoaHasCode(block.chainid, owner);
+            if (ownerCodehash != bytes32(0)) revert OwnerIsEoaWithCodehash(vm.getChainId(), owner, ownerCodehash);
+            if (_hasContractCode(owner)) revert OwnerIsEoaHasCode(vm.getChainId(), owner);
             return;
         }
-        if (owner.code.length == 0) revert OwnerHasNoCode(block.chainid, owner);
-        if (ownerCodehash == bytes32(0)) revert OwnerCodehashNotPinned(block.chainid, owner);
+        if (owner.code.length == 0) revert OwnerHasNoCode(vm.getChainId(), owner);
+        if (ownerCodehash == bytes32(0)) revert OwnerCodehashNotPinned(vm.getChainId(), owner);
         bytes32 actualCodehash = owner.codehash;
         if (actualCodehash != ownerCodehash) {
-            revert OwnerCodehashMismatch(block.chainid, owner, ownerCodehash, actualCodehash);
+            revert OwnerCodehashMismatch(vm.getChainId(), owner, ownerCodehash, actualCodehash);
         }
     }
 

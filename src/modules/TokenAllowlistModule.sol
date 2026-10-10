@@ -26,6 +26,8 @@ abstract contract TokenAllowlistModule is ITokenAllowlist {
 
         _getTokenAllowlistStorage().minTips[token] = minTip;
 
+        // No external call comes before this event; forge-lint counts the ERC-7201 storage getter's inline assembly as one.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit TokenAllowed(token, minTip);
     }
 
@@ -37,6 +39,8 @@ abstract contract TokenAllowlistModule is ITokenAllowlist {
         if ($.minTips[token] == 0) revert TokenNotApproved(token);
         delete $.minTips[token];
 
+        // No external call comes before this event; forge-lint counts the ERC-7201 storage getter's inline assembly as one.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit TokenDisallowed(token);
     }
 
