@@ -45,7 +45,7 @@ contract PreflightDeployment is Script, DeploymentGuards {
         bytes32 ownerCodehash
     ) public view {
         _requireDeployable(expectedChainId, owner, ownerIsEoa, ownerCodehash);
-        if (deployer.balance == 0) revert DeployerHasNoFunds(block.chainid, deployer);
+        if (deployer.balance == 0) revert DeployerHasNoFunds(vm.getChainId(), deployer);
     }
 
     /// @notice Logs and returns the implementation and proxy addresses for OWNER and SALT_LABEL. Needs no chain access.

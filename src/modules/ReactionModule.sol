@@ -29,6 +29,8 @@ abstract contract ReactionModule is IReactions, PostRegistryModule {
         $.liked[postId][msg.sender] = true;
         ++$.likeCounts[postId];
 
+        // False positive: forge-lint reads the storage getter's assembly as an external call; see docs/AUDIT.md.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit PostLiked(postId, msg.sender);
     }
 
@@ -41,6 +43,8 @@ abstract contract ReactionModule is IReactions, PostRegistryModule {
         $.liked[postId][msg.sender] = false;
         --$.likeCounts[postId];
 
+        // False positive: forge-lint reads the storage getter's assembly as an external call; see docs/AUDIT.md.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit PostUnliked(postId, msg.sender);
     }
 

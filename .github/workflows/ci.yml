@@ -30,7 +30,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Format, build, test, static analysis
+      - name: Format, lint, build, test, static analysis
         run: make ci
         env:
           FOUNDRY_PROFILE: ci

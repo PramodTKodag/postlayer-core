@@ -134,7 +134,7 @@ contract PostRegistryTest is SoloPostLayerTestBase {
     function test_updatePost_changesOnlyUriHashVersionAndUpdatedAt() public {
         _publishDefaultPost();
         IPostRegistry.Post memory expected = layer.getPost(1);
-        vm.warp(block.timestamp + 100);
+        vm.warp(vm.getBlockTimestamp() + 100);
 
         vm.prank(owner);
         layer.updatePost(1, NEW_URI, NEW_HASH);
@@ -142,7 +142,7 @@ contract PostRegistryTest is SoloPostLayerTestBase {
         expected.contentUri = NEW_URI;
         expected.contentHash = NEW_HASH;
         expected.version = 2;
-        expected.updatedAt = uint48(block.timestamp);
+        expected.updatedAt = uint48(vm.getBlockTimestamp());
         _assertSamePost(layer.getPost(1), expected);
     }
 

@@ -30,6 +30,8 @@ abstract contract PostRegistryModule is IPostRegistry {
 
         PostRegistryStorage storage $ = _getPostRegistryStorage();
         postId = ++$.postCount;
+        // casting to 'uint48' is safe because uint48 holds Unix timestamps until about the year 8,900,000
+        // forge-lint: disable-next-line(unsafe-typecast)
         uint48 timestamp = uint48(block.timestamp);
         $.posts[postId] = Post({
             author: msg.sender,
@@ -42,6 +44,8 @@ abstract contract PostRegistryModule is IPostRegistry {
             contentUri: contentUri
         });
 
+        // False positive: forge-lint reads the storage getter's assembly as an external call; see docs/AUDIT.md.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit PostPublished(postId, msg.sender, contentType, contentUri, contentHash);
     }
 
@@ -54,10 +58,14 @@ abstract contract PostRegistryModule is IPostRegistry {
         uint32 newVersion = post.version + 1;
 
         post.version = newVersion;
+        // casting to 'uint48' is safe because uint48 holds Unix timestamps until about the year 8,900,000
+        // forge-lint: disable-next-line(unsafe-typecast)
         post.updatedAt = uint48(block.timestamp);
         post.contentUri = contentUri;
         post.contentHash = contentHash;
 
+        // False positive: forge-lint reads the storage getter's assembly as an external call; see docs/AUDIT.md.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit PostUpdated(postId, newVersion, previousContentHash, contentUri, contentHash);
     }
 
@@ -66,6 +74,8 @@ abstract contract PostRegistryModule is IPostRegistry {
         Post storage post = _getExistingPost(postId);
         if (post.hidden) return;
         post.hidden = true;
+        // False positive: forge-lint reads the storage getter's assembly as an external call; see docs/AUDIT.md.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit PostHidden(postId);
     }
 
@@ -74,6 +84,8 @@ abstract contract PostRegistryModule is IPostRegistry {
         Post storage post = _getExistingPost(postId);
         if (!post.hidden) return;
         post.hidden = false;
+        // False positive: forge-lint reads the storage getter's assembly as an external call; see docs/AUDIT.md.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit PostUnhidden(postId);
     }
 
