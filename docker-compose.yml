@@ -1,7 +1,7 @@
-name: postlayer-core
+name: postlayer
 
 # Shared by every service so the tool versions pinned in docker/Dockerfile are used everywhere.
-x-tools-image: &tools-image postlayer-core-tools:local
+x-tools-image: &tools-image postlayer-tools:local
 
 services:
   # One-off commands (build, test, analysis). Started by `make` targets, not by `up`.

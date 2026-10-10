@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a security vulnerability
-    url: https://github.com/PramodTKodag/postlayer-core/security/advisories/new
+    url: https://github.com/PramodTKodag/postlayer/security/advisories/new
     about: Private report. Never open a public issue for a vulnerability.
   - name: Ask a question
-    url: https://github.com/PramodTKodag/postlayer-core/discussions
+    url: https://github.com/PramodTKodag/postlayer/discussions
     about: Questions and ideas belong in Discussions.

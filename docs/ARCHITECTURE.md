@@ -1,6 +1,6 @@
 # Architecture
 
-Design for `postlayer-core`. Items marked **planned** are not implemented yet.
+Design for `postlayer`. Items marked **planned** are not implemented yet.
 
 ## Goals
 

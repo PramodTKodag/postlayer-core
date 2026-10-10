@@ -26,7 +26,7 @@ jobs:
         with:
           context: ./docker
           load: true
-          tags: postlayer-core-tools:local
+          tags: postlayer-tools:local
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

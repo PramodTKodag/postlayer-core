@@ -1,6 +1,6 @@
 # Audit readiness
 
-Scope, trust model, invariants and static-analysis triage for `postlayer-core`, for reviewers and auditors. The project has **not** been audited yet (see `SECURITY.md`).
+Scope, trust model, invariants and static-analysis triage for `postlayer`, for reviewers and auditors. The project has **not** been audited yet (see `SECURITY.md`).
 
 ## Scope
 

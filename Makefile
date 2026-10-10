@@ -1,4 +1,4 @@
-# postlayer-core: single entry point for every task. Run `make` or `make help`.
+# postlayer: single entry point for every task. Run `make` or `make help`.
 # All tools run inside the pinned Docker image (see docker/Dockerfile).
 
 export HOST_UID := $(shell id -u)
