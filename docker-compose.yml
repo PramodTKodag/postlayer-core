@@ -1,6 +1,6 @@
 name: postlayer
 
-# Shared by every service so the tool versions pinned in docker/Dockerfile are used everywhere.
+# Shared by every service so the tool versions pinned in docker/ (Dockerfile and slither-requirements.txt) are used everywhere.
 x-tools-image: &tools-image postlayer-tools:local
 
 services:

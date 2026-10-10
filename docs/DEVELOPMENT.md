@@ -21,18 +21,18 @@ make versions   # prints the tool versions inside the image
 
 ## The tooling image
 
-`docker/Dockerfile` is the single source of truth for versions:
+The versions are pinned in `docker/`: in `docker/Dockerfile`, and for Slither and its dependencies in `docker/slither-requirements.txt` (every package pinned by hash):
 
 | Tool | Version | Notes |
 |---|---|---|
 | Foundry (forge, cast, anvil) | 1.8.5 | Official image, pinned by tag and digest |
 | Node.js | 24.21.0 | Tarball verified by SHA-256 |
-| Slither | 0.11.6 | Installed in a Python virtualenv |
-| Aderyn | 0.6.8 | Installed with npm |
+| Slither | 0.11.6 | Installed in a Python virtualenv from `docker/slither-requirements.txt`, every package pinned by hash |
+| Aderyn | 0.6.8 | Release binary verified by SHA-256 |
 | OpenZeppelin upgrades-core | 1.46.0 | Pinned in `package.json`, installed by `make test-upgrades` |
 | Solidity | 0.8.37 | Set in `foundry.toml` |
 
-Update a version by editing the Dockerfile (or `foundry.toml` for solc), rebuilding with `make image`, and running `make ci`. CI builds the same image.
+Update a version by editing the Dockerfile (an Aderyn or Node.js bump also needs its `*_SHA256_*` values changed, or `sha256sum -c` fails the build; `docker/slither-requirements.txt` for Slither, regenerated as its header says; `foundry.toml` for solc), rebuilding with `make image`, and running `make ci`. CI builds the same image.
 
 The container runs as your user, so files in `out/` and `cache/` belong to you. Compiler downloads are cached in named Docker volumes (one for `tools`, one for `release`); `make clean` removes them.
 
@@ -139,7 +139,7 @@ Inside the Compose network the chains are reachable as `http://anvil-a:8545` and
 
 ## CI
 
-`.github/workflows/ci.yml` builds the same tooling image and runs `make ci` with the larger fuzz and invariant counts. `.github/workflows/scorecard.yml` runs the OpenSSF Scorecard weekly and on pushes to `main`. `.github/workflows/codeql.yml` runs CodeQL on the workflows and the Python tooling on every PR, on pushes to `main` and weekly; CodeQL does not support Solidity, which Slither and Aderyn cover. `.github/dependabot.yml` opens weekly update PRs for Actions, npm and the Solidity submodules. Third-party Actions are pinned by commit SHA.
+`.github/workflows/ci.yml` builds the same tooling image and runs `make ci` with the larger fuzz and invariant counts. `.github/workflows/scorecard.yml` runs the OpenSSF Scorecard weekly and on pushes to `main`. `.github/workflows/codeql.yml` runs CodeQL on the workflows and the Python tooling on every PR, on pushes to `main` and weekly; CodeQL does not support Solidity, which Slither and Aderyn cover. `.github/dependabot.yml` opens weekly update PRs for Actions, pip (Slither's pinned packages in `docker/`), npm and the Solidity submodules. A pip update PR must keep the hash lines of `docker/slither-requirements.txt`; if one drops them, regenerate the file as its header says. Third-party Actions are pinned by commit SHA.
 
 ## Troubleshooting
 

@@ -5,6 +5,7 @@ All notable changes are recorded here. Format based on [Keep a Changelog](https:
 ## [Unreleased]
 
 ### Added
+- `SECURITY.md` links the private reporting form directly and states response times: acknowledgement within 3 business days and assessment within 7 calendar days of the report, public disclosure when the fix ships or 90 days after the report, whichever comes first.
 - CodeQL workflow: scans the GitHub Actions workflows and the Python release and docs tooling on every PR, on pushes to `main` and weekly, and uploads results to code scanning. Solidity stays covered by Slither and Aderyn.
 - README badge for the OpenSSF Best Practices passing level (project 15354).
 - `make lint` (part of `make ci`) runs Foundry's linter over `src/`, `script/` and `test/` (including `test/upgrades/`) and fails on any warning, or on an unused suppression in `src/` (the only place the linter reports them). The two kinds of warning in `src/` are suppressed inline with their reason and triaged in `docs/AUDIT.md`: `reentrancy-events` is a false positive (the linter counts the ERC-7201 storage getters' inline assembly as an external call), and the `uint48(block.timestamp)` casts cannot truncate. Comments only: the compiled bytecode is unchanged.
@@ -19,6 +20,7 @@ All notable changes are recorded here. Format based on [Keep a Changelog](https:
 - `.github/FUNDING.yml` enables the repository Sponsor button for the maintainer's GitHub Sponsors profile. Changes to it need the maintainer's review (`CODEOWNERS`), because it decides where donations go.
 
 ### Changed
+- The tooling image installs Slither from `docker/slither-requirements.txt` with every package pinned by hash (`pip --require-hashes --only-binary=:all:`, then `pip check`), and Aderyn from its release binary checked against a pinned SHA-256 instead of npm, whose package downloaded the binary unchecked.
 - The deploy, preflight and check scripts read the chain id with `vm.getChainId()` instead of `block.chainid`, so after `vm.createSelectFork` the wrong-chain guard and the chain id in errors and logs always come from the selected fork rather than a value the compiler may have kept from before the switch. The fork test and one post-registry test read the chain id and timestamp the same way.
 - The repository is renamed from `postlayer-core` to `postlayer` (GitHub redirects the old URL). Links, the npm package name, the Compose project name and the tooling image tag (`postlayer-tools:local`) follow; rebuild the image with `make image`. The README banner shows the new name. Contract names, bytecode and deployed addresses are unchanged.
 - An owner declared an EOA (`OWNER_IS_EOA=true`) is refused when it has contract code (`OwnerIsEoaHasCode`); the code of an EIP-7702 delegated account (`0xef0100` plus the delegate address) does not count, because that account is still controlled by its key. Before, the flag skipped every owner check, so a contract wallet declared an EOA by mistake (for example from a reused testnet `.env`) passed preflight and deploy.
