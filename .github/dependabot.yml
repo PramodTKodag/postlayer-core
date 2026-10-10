@@ -16,9 +16,15 @@ updates:
     groups:
       npm:
         patterns: ["*"]
-  # Solidity dependencies (OpenZeppelin, forge-std). A bump changes bytecode and may change storage layout:
+  # Solidity dependencies (forge-std, the upgrades plugin). A bump changes bytecode and may change storage layout:
   # review it like a contract change, and run make test-upgrades.
+  # The two OpenZeppelin libraries are ignored: Dependabot proposes the latest commit of their default branch, which is
+  # unreleased code (and a rename there already broke the build). They must also move together, to a tagged release,
+  # by hand: make install DEP=OpenZeppelin/openzeppelin-contracts@vX.Y.Z (and -upgradeable).
   - package-ecosystem: gitsubmodule
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: lib/openzeppelin-contracts
+      - dependency-name: lib/openzeppelin-contracts-upgradeable
