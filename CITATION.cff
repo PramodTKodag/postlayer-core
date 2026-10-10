@@ -1,10 +1,10 @@
 cff-version: 1.2.0
 message: "If you use PostLayer in your work, please cite it as below."
-title: "PostLayer Core"
+title: "PostLayer"
 abstract: "On-chain publishing layer: UUPS-upgradeable posts, free likes and tipping, deployed at the same address on every chain."
 type: software
 license: MIT
-repository-code: "https://github.com/PramodTKodag/postlayer-core"
+repository-code: "https://github.com/PramodTKodag/postlayer"
 authors:
   - family-names: "Kodag"
     given-names: "Pramod"

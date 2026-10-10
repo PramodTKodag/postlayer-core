@@ -1,9 +1,9 @@
-![postlayer-core: your blog, on-chain; your readers, tipping you](docs/assets/banner.jpg)
+![postlayer: your blog, on-chain; your readers, tipping you](docs/assets/banner.jpg)
 
-# postlayer-core
+# postlayer
 
-[![CI](https://github.com/PramodTKodag/postlayer-core/actions/workflows/ci.yml/badge.svg)](https://github.com/PramodTKodag/postlayer-core/actions/workflows/ci.yml)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/PramodTKodag/postlayer-core/badge)](https://scorecard.dev/viewer/?uri=github.com/PramodTKodag/postlayer-core)
+[![CI](https://github.com/PramodTKodag/postlayer/actions/workflows/ci.yml/badge.svg)](https://github.com/PramodTKodag/postlayer/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/PramodTKodag/postlayer/badge)](https://scorecard.dev/viewer/?uri=github.com/PramodTKodag/postlayer)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 On-chain publishing layer: authors publish posts, readers like them and tip the author in native coin or approved tokens. Upgradeable (UUPS), chain-agnostic, content-type neutral.
@@ -16,7 +16,7 @@ PostLayer starts as a blogging contract and is built so images and video can fol
 
 | Mode | Who posts | Tips | Where it lives |
 |---|---|---|---|
-| **Solo** | Only the owner (set at initialization) | 100% to the post's author | This repo (`postlayer-core`, MIT) |
+| **Solo** | Only the owner (set at initialization) | 100% to the post's author | This repo (`postlayer`, MIT) |
 | **Platform** | Many registered authors | Author share plus a capped platform fee | Separate repo (`postlayer-platform`) built on this one |
 
 ## Features

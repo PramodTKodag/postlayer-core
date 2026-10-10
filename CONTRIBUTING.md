@@ -4,7 +4,7 @@ Thanks for helping. This project handles other people's money, so changes are re
 
 ## Before you start
 
-- Open an issue to discuss anything larger than a small fix. Questions go in [Discussions](https://github.com/PramodTKodag/postlayer-core/discussions) (see [SUPPORT.md](SUPPORT.md)).
+- Open an issue to discuss anything larger than a small fix. Questions go in [Discussions](https://github.com/PramodTKodag/postlayer/discussions) (see [SUPPORT.md](SUPPORT.md)).
 - Security problems go through [SECURITY.md](SECURITY.md), never a public issue.
 
 ## Setup
@@ -12,7 +12,7 @@ Thanks for helping. This project handles other people's money, so changes are re
 You need Docker (with Compose) and `make`. Nothing else.
 
 ```sh
-git clone --recurse-submodules https://github.com/PramodTKodag/postlayer-core.git && cd postlayer-core
+git clone --recurse-submodules https://github.com/PramodTKodag/postlayer.git && cd postlayer
 make image      # build the pinned tooling image
 make ci         # run everything CI runs
 ```
